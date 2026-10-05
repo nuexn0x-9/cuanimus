@@ -489,22 +489,26 @@ class CuanimusApp {
             <tbody>
       `;
 
-      pos.forEach(p => {
-        tblHtml += `
-          <tr>
-            <td><b>${p.symbol}</b></td>
-            <td><span class="badge ${p.side === 'LONG' ? 'badge-bull' : 'badge-bear'}">${p.side}</span></td>
-            <td class="mono">${p.size}</td>
-            <td class="mono">$${p.entry_price.toFixed(2)}</td>
-            <td class="mono">$${p.mark_price.toFixed(2)}</td>
-            <td class="mono ${p.unrealized_pnl_usd >= 0 ? 'bull' : 'bear'}">${p.unrealized_pnl_usd >= 0 ? '+' : ''}$${p.unrealized_pnl_usd.toFixed(2)}</td>
-            <td class="mono ${p.roe_pct >= 0 ? 'bull' : 'bear'}">${p.roe_pct.toFixed(2)}%</td>
-            <td class="mono" style="color: var(--color-bear);">$${p.stop_loss.toFixed(2)}</td>
-            <td class="mono" style="color: var(--color-bull);">$${p.take_profit.toFixed(2)}</td>
-            <td><button class="btn btn-sm" onclick="window.app.inspectTrace('TRACE_TRD_734')">Trace</button></td>
-          </tr>
-        `;
-      });
+      if (pos.length === 0) {
+        tblHtml += `<tr><td colspan="10" style="text-align: center; color: var(--text-muted); padding: 18px;">No active open positions. Portfolio is currently flat and waiting for qualified setups.</td></tr>`;
+      } else {
+        pos.forEach(p => {
+          tblHtml += `
+            <tr>
+              <td><b>${p.symbol}</b></td>
+              <td><span class="badge ${p.side === 'LONG' ? 'badge-bull' : 'badge-bear'}">${p.side}</span></td>
+              <td class="mono">${p.size}</td>
+              <td class="mono">$${p.entry_price.toFixed(2)}</td>
+              <td class="mono">$${p.mark_price.toFixed(2)}</td>
+              <td class="mono ${p.unrealized_pnl_usd >= 0 ? 'bull' : 'bear'}">${p.unrealized_pnl_usd >= 0 ? '+' : ''}$${p.unrealized_pnl_usd.toFixed(2)}</td>
+              <td class="mono ${p.roe_pct >= 0 ? 'bull' : 'bear'}">${p.roe_pct.toFixed(2)}%</td>
+              <td class="mono" style="color: var(--color-bear);">$${p.stop_loss.toFixed(2)}</td>
+              <td class="mono" style="color: var(--color-bull);">$${p.take_profit.toFixed(2)}</td>
+              <td><button class="btn btn-sm" onclick="window.app.inspectTrace('${p.decision_trace_id || ('TRACE_' + p.id)}')">Trace</button></td>
+            </tr>
+          `;
+        });
+      }
 
       tblHtml += `
             </tbody>
@@ -530,26 +534,78 @@ class CuanimusApp {
             <tbody>
       `;
 
-      ord.forEach(o => {
-        let stBadge = 'badge-neutral';
-        if (o.status === 'FILLED') stBadge = 'badge-bull';
-        if (o.status === 'SUBMITTED') stBadge = 'badge-info';
-        if (o.status === 'CANCELLED' || o.status === 'REJECTED') stBadge = 'badge-bear';
+      if (ord.length === 0) {
+        tblHtml += `<tr><td colspan="9" style="text-align: center; color: var(--text-muted); padding: 18px;">No active or recent orders in order lifecycle buffer.</td></tr>`;
+      } else {
+        ord.forEach(o => {
+          let stBadge = 'badge-neutral';
+          if (o.status === 'FILLED') stBadge = 'badge-bull';
+          if (o.status === 'SUBMITTED') stBadge = 'badge-info';
+          if (o.status === 'CANCELLED' || o.status === 'REJECTED') stBadge = 'badge-bear';
 
-        tblHtml += `
-          <tr>
-            <td class="mono"><b>${o.order_id}</b></td>
-            <td class="mono" style="font-size: 10px; color: var(--text-muted);">${o.client_order_id}</td>
-            <td>${o.symbol}</td>
-            <td><span class="badge ${o.side === 'BUY' ? 'badge-bull' : 'badge-bear'}">${o.side}</span></td>
-            <td>${o.type}</td>
-            <td class="mono">$${o.price.toFixed(2)}</td>
-            <td class="mono">${o.filled} / ${o.amount}</td>
-            <td><span class="badge ${stBadge}">${o.status}</span></td>
-            <td style="font-size: 11px;">${o.created_at}</td>
-          </tr>
-        `;
-      });
+          tblHtml += `
+            <tr>
+              <td class="mono"><b>${o.order_id}</b></td>
+              <td class="mono" style="font-size: 10px; color: var(--text-muted);">${o.client_order_id}</td>
+              <td>${o.symbol}</td>
+              <td><span class="badge ${o.side === 'BUY' ? 'badge-bull' : 'badge-bear'}">${o.side}</span></td>
+              <td>${o.type}</td>
+              <td class="mono">$${o.price.toFixed(2)}</td>
+              <td class="mono">${o.filled} / ${o.amount}</td>
+              <td><span class="badge ${stBadge}">${o.status}</span></td>
+              <td style="font-size: 11px;">${o.created_at}</td>
+            </tr>
+          `;
+        });
+      }
+
+      tblHtml += `
+            </tbody>
+          </table>
+        </div>
+
+        <h4 style="margin: 16px 0 10px 0; font-size: 12px; color: var(--text-muted);">RECENT EXECUTIONS & CLOSED TRADES (AUDIT TRAIL)</h4>
+        <div class="table-responsive">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Trade ID</th>
+                <th>Symbol</th>
+                <th>Side</th>
+                <th>Amount</th>
+                <th>Entry</th>
+                <th>Exit</th>
+                <th>PnL ($ / %)</th>
+                <th>Exit Reason</th>
+                <th>Close Time</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+      `;
+
+      if (trd.length === 0) {
+        tblHtml += `<tr><td colspan="10" style="text-align: center; color: var(--text-muted); padding: 18px;">No closed trades recorded.</td></tr>`;
+      } else {
+        trd.forEach(t => {
+          const entryStr = t.entry_price < 1.0 ? t.entry_price.toFixed(4) : t.entry_price.toFixed(2);
+          const exitStr = t.exit_price < 1.0 ? t.exit_price.toFixed(4) : t.exit_price.toFixed(2);
+          tblHtml += `
+            <tr>
+              <td class="mono"><b>${t.trade_id}</b></td>
+              <td>${t.symbol}</td>
+              <td><span class="badge ${t.side === 'LONG' ? 'badge-bull' : 'badge-bear'}">${t.side}</span></td>
+              <td class="mono">${t.amount}</td>
+              <td class="mono">$${entryStr}</td>
+              <td class="mono">$${exitStr}</td>
+              <td class="mono ${t.pnl_usd >= 0 ? 'bull' : 'bear'}">${t.pnl_usd >= 0 ? '+' : ''}$${t.pnl_usd.toFixed(2)} (${t.pnl_pct >= 0 ? '+' : ''}${t.pnl_pct.toFixed(2)}%)</td>
+              <td><span class="badge badge-neutral">${t.exit_reason}</span></td>
+              <td style="font-size: 11px;">${t.close_time}</td>
+              <td><button class="btn btn-sm" onclick="window.app.inspectTrace('${t.decision_trace_id || t.trade_id}')">Trace</button></td>
+            </tr>
+          `;
+        });
+      }
 
       tblHtml += `
             </tbody>
@@ -1231,7 +1287,7 @@ class CuanimusApp {
     if (btnCreate) {
       btnCreate.addEventListener('click', async () => {
         try {
-          await API.createPaperSession('antigravity-copilot', 7200, 20);
+          await API.createPaperSession('antigravity-agent', 7200, 20);
           Toast.success("New PAPER session started cleanly!");
           this.refreshAll();
         } catch (err) {
