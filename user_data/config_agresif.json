@@ -1,0 +1,114 @@
+{
+  "trading_mode": "futures",
+  "margin_mode": "isolated",
+
+  "max_open_trades": 3,
+
+  "stake_currency": "USDT",
+  "stake_amount": "unlimited",
+  "amend_last_stake_amount": true,
+
+  "tradable_balance_ratio": 0.95,
+
+  "available_capital": 65,
+
+  "dry_run": true,
+  "dry_run_wallet": 65,
+
+  "db_url": "sqlite:////freqtrade/user_data/tradesv3.dryrun.sqlite",
+
+  "unfilledtimeout": {
+    "entry": 10,
+    "exit": 10,
+    "unit": "minutes"
+  },
+
+  "timeframe": "15m",
+
+  "startup_candle_count": 100,
+
+  "position_adjustment": false,
+
+  "can_short": true,
+
+  "minimal_roi": {
+    "0": 0.03,
+    "30": 0.02,
+    "60": 0.01,
+    "120": 0
+  },
+
+  "stoploss": -0.015,
+
+  "trailing_stop": true,
+  "trailing_stop_positive": 0.01,
+  "trailing_stop_positive_offset": 0.018,
+  "trailing_only_offset_is_reached": true,
+
+  "entry_pricing": {
+    "price_side": "same",
+    "use_order_book": true,
+    "order_book_top": 1
+  },
+
+  "exit_pricing": {
+    "price_side": "same",
+    "use_order_book": true,
+    "order_book_top": 1
+  },
+
+  "exchange": {
+    "name": "binance",
+    "sandbox": false,
+
+    "key": "",
+    "secret": "",
+
+    "pair_whitelist": ["XRP/USDT:USDT", "ETH/USDT:USDT", "ADA/USDT:USDT"],
+
+    "ccxt_config": {
+      "enableRateLimit": true,
+      "timeout": 60000
+    }
+  },
+
+  "pairlists": [
+    {
+      "method": "StaticPairList"
+    }
+  ],
+
+  "logging": {
+    "logfile": "user_data/logs/freqtrade_agresif.log",
+    "loglevel": "INFO"
+  },
+
+  "api_server": {
+    "enabled": true,
+    "listen_ip_address": "0.0.0.0",
+    "listen_port": 8080,
+    "username": "admin_gemini",
+    "password": "",
+    "jwt_secret_key": ""
+  },
+
+  "telegram": {
+    "enabled": false,
+    "token": "",
+    "chat_id": "",
+
+    "notification_settings": {
+      "status": "on",
+      "entry": "on",
+      "exit": "on",
+      "warning": "on",
+      "entry_cancel": "off",
+      "exit_cancel": "off",
+      "entry_fill": "off",
+      "exit_fill": "off",
+      "protection_trigger": "on",
+      "protection_trigger_global": "on",
+      "whitelisted_pairs_only": "false"
+    }
+  }
+}

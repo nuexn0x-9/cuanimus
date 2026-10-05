@@ -1,0 +1,11 @@
+execution:
+  profile_name: aggressive
+  entry_order_type: market
+  exit_order_type: market
+  limit_timeout_bars: 2
+  retry_attempts: 5
+  retry_backoff_ms: 200
+  slippage_model: STRESS
+  slippage_pct: 0.25
+  modeled_execution: true
+  pessimistic_sl_precedence: true

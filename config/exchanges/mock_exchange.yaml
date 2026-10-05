@@ -1,0 +1,10 @@
+exchange:
+  provider: mock
+  market_type: futures
+  environment: mock
+  quote_asset: USDT
+  maker_fee_pct: 0.00
+  taker_fee_pct: 0.00
+  rate_limit_per_minute: 10000
+  timeout_seconds: 1.0
+  recv_window_ms: 1000

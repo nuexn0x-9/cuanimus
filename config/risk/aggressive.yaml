@@ -1,0 +1,16 @@
+risk:
+  profile_name: aggressive
+  risk_per_trade_pct: 1.5
+  max_leverage: 7.0
+  max_daily_loss_pct: 5.0
+  max_drawdown_pct: 20.0
+  max_pair_exposure_pct: 40.0
+  max_total_exposure_pct: 95.0
+  consecutive_loss_pair_threshold: 4
+  consecutive_loss_pair_cooldown_hours: 2.0
+  consecutive_loss_portfolio_threshold: 6
+  consecutive_loss_portfolio_cooldown_hours: 6.0
+  emergency_stop_enabled: true
+  capital_preservation_lock: true
+  drawdown_leverage_throttle_threshold_pct: 12.0
+  drawdown_throttled_leverage: 3.0

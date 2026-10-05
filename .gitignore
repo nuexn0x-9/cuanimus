@@ -1,0 +1,43 @@
+# CUANIMUS Git Ignore Policy
+
+# Secrets and Environment Variables
+.env
+.env.*
+!.env.example
+
+# Local SQLite databases and persistent runtime state
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
+*.db
+user_data/tradesv3.dryrun.sqlite*
+user_data/tradesv3.sqlite*
+
+# Local configurations with sensitive keys
+user_data/config.json
+user_data/config_agresif.json
+!user_data/config.example.json
+*.user.yaml
+
+# Logs and runtime caches
+logs/
+user_data/logs/
+*.log
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Local data caches
+user_data/data/
+user_data/backtest_results/
+user_data/hyperopt_results/
+user_data/market_bias.json
+
+# IDE and OS files
+.vscode/
+.idea/
+.DS_Store
+*.swp

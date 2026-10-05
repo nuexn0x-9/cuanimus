@@ -1,0 +1,21 @@
+agent_id: "cuanimus-paper-auto"
+name: "CUANIMUS Autonomous Paper Trader"
+role: "TRADER"
+allowed_environments:
+  - "paper"
+allowed_symbols:
+  - "BTC/USDT:USDT"
+  - "ETH/USDT:USDT"
+  - "SOL/USDT:USDT"
+  - "BNB/USDT:USDT"
+  - "XRP/USDT:USDT"
+allowed_strategies:
+  - "v2_pullback"
+  - "baseline_v0"
+  - "breakout_v1"
+max_risk_per_trade_pct: 2.0
+max_leverage: 5.0
+max_daily_loss_pct: 3.0
+max_orders_per_minute: 10
+require_two_step_intent: true
+require_mandatory_stop_loss: true

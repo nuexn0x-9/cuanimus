@@ -1,0 +1,95 @@
+{
+  "experiment_id": "EXP_V0_BASELINE",
+  "parent_version": null,
+  "strategy_version": "V0_SNIPER_TRADE",
+  "dataset_hash": "30a71e5d704c88b1a0551daf315f4aa09eaa64f94eaa4812b2866b3580e4479d",
+  "total_records": 733,
+  "date_range": {
+    "start": "2026-06-25 07:49:02.586065",
+    "end": "2026-10-02 13:50:37.245000"
+  },
+  "universe": [
+    "ADA/USDT:USDT",
+    "ETH/USDT:USDT",
+    "XRP/USDT:USDT"
+  ],
+  "parameters": {
+    "timeframe": "15m",
+    "leverage": 5.0,
+    "stake_amount": 10.0,
+    "stoploss_pct": -0.015,
+    "roi_table": {
+      "0": 0.03,
+      "30": 0.02,
+      "60": 0.01,
+      "120": 0
+    },
+    "trailing_stop": true,
+    "entry_order_type": "limit"
+  },
+  "fee_model": {
+    "maker": 0.0002,
+    "taker": 0.0005
+  },
+  "slippage_model": {
+    "estimated_avg_pct": 0.05
+  },
+  "metrics": {
+    "total_trades": 733,
+    "win_count": 270,
+    "loss_count": 463,
+    "win_rate": 36.83,
+    "avg_win_pct": 1.85,
+    "avg_loss_pct": -1.91,
+    "avg_win_abs": 0.1834,
+    "avg_loss_abs": -0.1896,
+    "payoff_ratio": 0.966,
+    "profit_factor": 0.564,
+    "expectancy_pct": -0.527,
+    "expectancy_abs": -0.0522,
+    "total_net_pnl": -38.27,
+    "total_return_pct": -58.87,
+    "max_drawdown_abs": 38.27,
+    "max_drawdown_pct": 58.87,
+    "recovery_factor": 1.0,
+    "max_consecutive_losses": 13,
+    "largest_win_pct": 5.39,
+    "largest_loss_pct": -11.28,
+    "total_turnover": 7268.65,
+    "total_fees": 10.7671,
+    "total_funding": -0.0368,
+    "avg_duration_minutes": 39.3,
+    "avg_mae_pct": -0.29,
+    "avg_mfe_pct": 0.26,
+    "avg_r_multiple": -0.352,
+    "pair_breakdown": {
+      "ETH/USDT:USDT": {
+        "trades": 196,
+        "wins": 71,
+        "pnl": -10.5357026
+      },
+      "XRP/USDT:USDT": {
+        "trades": 143,
+        "wins": 58,
+        "pnl": -7.018688580000002
+      },
+      "ADA/USDT:USDT": {
+        "trades": 394,
+        "wins": 141,
+        "pnl": -20.711206500000003
+      }
+    },
+    "side_breakdown": {
+      "LONG": {
+        "trades": 501,
+        "wins": 189,
+        "pnl": -21.8237667
+      },
+      "SHORT": {
+        "trades": 232,
+        "wins": 81,
+        "pnl": -16.441830980000006
+      }
+    }
+  }
+}

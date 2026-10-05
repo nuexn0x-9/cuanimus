@@ -1,0 +1,37 @@
+# CUANIMUS Beginner Preset Profile
+# Designed for first-time operators: Paper mode, low risk, strict safeguards.
+
+environment:
+  env_name: paper
+  dry_run: true
+  live_trading_enabled: false
+
+market:
+  pairs:
+    - ETH/USDT:USDT
+  base_timeframe: 15m
+  context_timeframe: 1h
+
+strategy:
+  strategy_id: hybrid_v2c
+  long_enabled: true
+  short_enabled: false
+
+risk:
+  profile_name: conservative
+  risk_per_trade_pct: 0.5
+  max_leverage: 2.0
+  max_daily_loss_pct: 1.5
+  max_drawdown_pct: 10.0
+  max_pair_exposure_pct: 25.0
+  max_total_exposure_pct: 50.0
+
+execution:
+  profile_name: conservative
+  entry_order_type: limit
+  exit_order_type: market
+  slippage_model: CONSERVATIVE
+  slippage_pct: 0.10
+
+ai:
+  enabled: false

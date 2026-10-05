@@ -1,0 +1,6 @@
+environment:
+  env_name: paper
+  dry_run: true
+  live_trading_enabled: false
+  data_dir: user_data/data
+  db_url: sqlite:///user_data/paper.sqlite

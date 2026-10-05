@@ -1,0 +1,68 @@
+{
+  "experiment_id": "EXP_V1_TRUE_REVALIDATION",
+  "parent_version": "EXP_V0_BASELINE",
+  "strategy_name": "V1_TRUE_DYNAMIC_ATR_STOP",
+  "information_boundary": "STRICT_CAUSAL_CLOSED_BARS",
+  "date_range": "2026-06-25T00:00:00Z to 2026-10-02T23:59:59Z",
+  "execution_model": "MODELED (Limit Entry, Adverse Taker Slippage 0.05%)",
+  "funding_model": "HISTORICAL BINANCE FUTURES FUNDING RATE 8H",
+  "walk_forward": {
+    "train": {
+      "trades": 6,
+      "win_rate": 0.0,
+      "net_pnl": -4.78,
+      "profit_factor": 0.0
+    },
+    "validation": {
+      "trades": 2,
+      "win_rate": 100.0,
+      "net_pnl": 2.1,
+      "profit_factor": NaN
+    },
+    "test_oos": {
+      "trades": 3,
+      "win_rate": 33.33,
+      "net_pnl": -0.47,
+      "profit_factor": 0.689
+    },
+    "wfe_metric": {
+      "wfe_pct": 0.0,
+      "status": "REJECTED_NEGATIVE_IN_SAMPLE",
+      "is_robust": false
+    }
+  },
+  "stability": {
+    "pairs": {
+      "ADA/USDT:USDT": {
+        "total_trades": 3,
+        "win_rate": 33.33,
+        "net_pnl": -0.66,
+        "profit_factor": 0.661
+      },
+      "ETH/USDT:USDT": {
+        "total_trades": 3,
+        "win_rate": 0.0,
+        "net_pnl": -2.14,
+        "profit_factor": 0.0
+      },
+      "XRP/USDT:USDT": {
+        "total_trades": 5,
+        "win_rate": 40.0,
+        "net_pnl": -0.35,
+        "profit_factor": 0.842
+      }
+    },
+    "long": {
+      "total_trades": 3,
+      "win_rate": 0.0,
+      "net_pnl": -1.69,
+      "profit_factor": 0.0
+    },
+    "short": {
+      "total_trades": 8,
+      "win_rate": 37.5,
+      "net_pnl": -1.46,
+      "profit_factor": 0.683
+    }
+  }
+}

@@ -1,0 +1,16 @@
+strategy:
+  strategy_id: hybrid_v2c
+  name: "V2C Hybrid Pullback & Structure"
+  version: "2.0.0"
+  description: "Confluence of EMA20 pullback, Stochastic reset, and unmitigated order block / Fibonacci retest"
+  long_enabled: true
+  short_enabled: false
+  parameters:
+    ema_fast: 20
+    ema_slow: 50
+    stoch_oversold: 30.0
+    stoch_overbought: 70.0
+    pullback_tolerance_pct: 0.8
+    fractal_window: 2
+    volume_multiplier: 1.1
+    min_regime_adx: 20.0

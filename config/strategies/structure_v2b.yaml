@@ -1,0 +1,15 @@
+strategy:
+  strategy_id: structure_v2b
+  name: "V2B Market Structure & Fibonacci Retest"
+  version: "2.0.0"
+  description: "Causal fractal swing detection with Fibonacci golden pocket (0.5 - 0.618) value area retest"
+  long_enabled: true
+  short_enabled: false
+  parameters:
+    ema_fast: 20
+    ema_slow: 50
+    fractal_window: 2
+    fib_entry_lower: 0.382
+    fib_entry_upper: 0.618
+    volume_multiplier: 1.1
+    min_regime_adx: 20.0

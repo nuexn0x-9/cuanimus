@@ -1,0 +1,23 @@
+{
+  "BASE": {
+    "slippage_pct": 0.05,
+    "win_rate": 41.67,
+    "net_pnl": -0.08,
+    "profit_factor": 0.986,
+    "max_drawdown_pct": 3.89
+  },
+  "CONSERVATIVE": {
+    "slippage_pct": 0.1,
+    "win_rate": 41.67,
+    "net_pnl": -0.4,
+    "profit_factor": 0.932,
+    "max_drawdown_pct": 4.2
+  },
+  "STRESS": {
+    "slippage_pct": 0.25,
+    "win_rate": 41.67,
+    "net_pnl": -1.23,
+    "profit_factor": 0.819,
+    "max_drawdown_pct": 5.11
+  }
+}

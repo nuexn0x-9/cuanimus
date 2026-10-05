@@ -1,0 +1,14 @@
+strategy:
+  strategy_id: baseline_v0
+  name: "Baseline V0 Sniper Trend"
+  version: "1.0.0"
+  description: "Legacy dual EMA trend with RSI and ADX momentum triggers"
+  long_enabled: true
+  short_enabled: true
+  parameters:
+    ema_fast: 20
+    ema_slow: 50
+    rsi_period: 14
+    rsi_overbought: 62.0
+    rsi_oversold: 38.0
+    adx_threshold: 25.0

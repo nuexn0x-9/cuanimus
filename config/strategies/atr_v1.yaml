@@ -1,0 +1,15 @@
+strategy:
+  strategy_id: atr_v1
+  name: "V1 Dynamic ATR Stop Strategy"
+  version: "1.1.0"
+  description: "Baseline V0 entry signals coupled with dynamic volatility-adjusted ATR stop losses"
+  long_enabled: true
+  short_enabled: true
+  parameters:
+    ema_fast: 20
+    ema_slow: 50
+    rsi_overbought: 62.0
+    rsi_oversold: 38.0
+    adx_threshold: 25.0
+    atr_period: 14
+    atr_multiplier: 2.0

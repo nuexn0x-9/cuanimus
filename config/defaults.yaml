@@ -1,0 +1,105 @@
+# CUANIMUS Platform Default Configuration
+# Base fallbacks across all subsystems
+
+environment:
+  env_name: paper
+  dry_run: true
+  live_trading_enabled: false
+  data_dir: user_data/data
+  db_url: sqlite:///user_data/cuanimus.sqlite
+
+exchange:
+  provider: binance
+  market_type: futures
+  environment: testnet
+  quote_asset: USDT
+  maker_fee_pct: 0.02
+  taker_fee_pct: 0.05
+  rate_limit_per_minute: 1200
+  timeout_seconds: 10.0
+  recv_window_ms: 5000
+
+market:
+  pairs:
+    - ADA/USDT:USDT
+    - ETH/USDT:USDT
+    - XRP/USDT:USDT
+  base_timeframe: 15m
+  context_timeframe: 1h
+  macro_timeframe: 4h
+
+strategy:
+  strategy_id: v2c_hybrid
+  name: "Hybrid Pullback & Order Block"
+  version: "2.0.0"
+  long_enabled: true
+  short_enabled: false
+  parameters:
+    ema_fast: 20
+    ema_slow: 50
+    stoch_oversold: 30.0
+    stoch_overbought: 70.0
+    pullback_tolerance_pct: 0.8
+    volume_multiplier: 1.1
+    min_regime_adx: 20.0
+
+risk:
+  profile_name: balanced
+  risk_per_trade_pct: 1.0
+  max_leverage: 5.0
+  max_daily_loss_pct: 3.0
+  max_drawdown_pct: 15.0
+  max_pair_exposure_pct: 30.0
+  max_total_exposure_pct: 80.0
+  consecutive_loss_pair_threshold: 3
+  consecutive_loss_pair_cooldown_hours: 4.0
+  consecutive_loss_portfolio_threshold: 5
+  consecutive_loss_portfolio_cooldown_hours: 12.0
+  emergency_stop_enabled: true
+  capital_preservation_lock: true
+  drawdown_leverage_throttle_threshold_pct: 10.0
+  drawdown_throttled_leverage: 2.0
+
+execution:
+  profile_name: conservative
+  entry_order_type: limit
+  exit_order_type: market
+  limit_timeout_bars: 4
+  retry_attempts: 3
+  retry_backoff_ms: 500
+  slippage_model: CONSERVATIVE
+  slippage_pct: 0.10
+  modeled_execution: true
+  pessimistic_sl_precedence: true
+
+ai:
+  enabled: false
+  provider: gemini
+  mode: regime_context
+  model_name: gemini-2.5-flash
+  cache_ttl_seconds: 900
+  circuit_breaker_failures: 3
+  circuit_breaker_cooldown_seconds: 60.0
+  timeout_seconds: 5.0
+
+backtest:
+  initial_capital: 65.0
+  start_date: "2026-06-25T00:00:00Z"
+  end_date: "2026-10-02T23:59:59Z"
+  information_boundary: "STRICT_CAUSAL_CLOSED_BARS"
+  funding_modeled: true
+
+notification:
+  telegram_enabled: false
+  discord_enabled: false
+  alert_on_entry: true
+  alert_on_exit: true
+  alert_on_risk_veto: true
+  alert_on_circuit_breaker: true
+  alert_on_emergency_stop: true
+
+observability:
+  log_level: INFO
+  correlation_id_enabled: true
+  structured_json_logging: true
+  telemetry_export_interval_seconds: 60

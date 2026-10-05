@@ -1,0 +1,11 @@
+execution:
+  profile_name: balanced
+  entry_order_type: limit
+  exit_order_type: market
+  limit_timeout_bars: 4
+  retry_attempts: 3
+  retry_backoff_ms: 300
+  slippage_model: BASE
+  slippage_pct: 0.05
+  modeled_execution: true
+  pessimistic_sl_precedence: true

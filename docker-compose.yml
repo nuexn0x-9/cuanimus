@@ -1,0 +1,16 @@
+services:
+  freqtrade_gemini:
+    image: freqtradeorg/freqtrade:stable
+    container_name: freqtrade_gemini_futures
+    volumes:
+      - "./user_data:/freqtrade/user_data"
+    network_mode: "host"
+    env_file:
+      - .env
+    environment:
+      - TZ=Asia/Jakarta
+    restart: unless-stopped
+    command: >
+      trade
+      --config /freqtrade/user_data/config_agresif.json
+      --strategy SNIPER_TRADE

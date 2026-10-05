@@ -1,0 +1,14 @@
+#!/usr/bin/env python3
+"""
+CUANIMUS Platform Command-Line Executable Entrypoint.
+"""
+import sys
+import os
+
+# Ensure current directory is on pythonpath
+sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
+
+from cuanimus.cli.main import main
+
+if __name__ == "__main__":
+    sys.exit(main())

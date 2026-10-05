@@ -1,0 +1,9 @@
+# CUANIMUS Live Environment Specification
+# NOTE: Live trading is STRICTLY BLOCKED by Readiness Gate 8.
+# live_trading_enabled must remain false.
+environment:
+  env_name: live
+  dry_run: false
+  live_trading_enabled: false
+  data_dir: user_data/data
+  db_url: sqlite:///user_data/live.sqlite

@@ -1,0 +1,89 @@
+{
+  "trading_mode": "futures",
+  "margin_mode": "isolated",
+  "max_open_trades": 3,
+  "stake_currency": "USDT",
+  "stake_amount": "unlimited",
+  "amend_last_stake_amount": true,
+  "tradable_balance_ratio": 0.95,
+  "available_capital": 65,
+  "dry_run": true,
+  "dry_run_wallet": 65,
+  "timeframe": "15m",
+  "startup_candle_count": 100,
+  "position_adjustment": false,
+  "can_short": true,
+  "db_url": "sqlite:////freqtrade/user_data/tradesv3.dryrun.sqlite",
+  "minimal_roi": {
+    "0": 0.05,
+    "60": 0.03,
+    "120": 0.015,
+    "240": 0
+  },
+  "stoploss": -0.025,
+  "unfilledtimeout": {
+    "entry": 10,
+    "exit": 10,
+    "unit": "minutes"
+  },
+  "entry_pricing": {
+    "price_side": "same",
+    "use_order_book": true,
+    "order_book_top": 1
+  },
+  "exit_pricing": {
+    "price_side": "same",
+    "use_order_book": true,
+    "order_book_top": 1
+  },
+  "exchange": {
+    "name": "binance",
+    "sandbox": false,
+    "key": "${BINANCE_API_KEY}",
+    "secret": "${BINANCE_API_SECRET}",
+    "pair_whitelist": [
+      "XRP/USDT:USDT",
+      "ETH/USDT:USDT",
+      "ADA/USDT:USDT"
+    ],
+    "ccxt_config": {
+      "enableRateLimit": true,
+      "timeout": 60000
+    }
+  },
+  "pairlists": [
+    {
+      "method": "StaticPairList"
+    }
+  ],
+  "logging": {
+    "logfile": "user_data/logs/cuanimus.log",
+    "loglevel": "INFO"
+  },
+  "api_server": {
+    "enabled": true,
+    "listen_ip_address": "0.0.0.0",
+    "listen_port": 8080,
+    "username": "${API_SERVER_USERNAME}",
+    "password": "${API_SERVER_PASSWORD}",
+    "jwt_secret_key": "${JWT_SECRET_KEY}"
+  },
+  "telegram": {
+    "enabled": false,
+    "token": "${TELEGRAM_BOT_TOKEN}",
+    "chat_id": "${TELEGRAM_CHAT_ID}",
+    "notification_settings": {
+      "status": "on",
+      "entry": "on",
+      "exit": "on",
+      "warning": "on",
+      "entry_cancel": "off",
+      "exit_cancel": "off",
+      "entry_fill": "off",
+      "exit_fill": "off",
+      "protection_trigger": "on",
+      "protection_trigger_global": "on",
+      "whitelisted_pairs_only": "false"
+    }
+  }
+}

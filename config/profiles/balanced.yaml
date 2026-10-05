@@ -1,0 +1,36 @@
+# CUANIMUS Balanced Preset Profile
+environment:
+  env_name: paper
+  dry_run: true
+  live_trading_enabled: false
+
+market:
+  pairs:
+    - ADA/USDT:USDT
+    - ETH/USDT:USDT
+    - XRP/USDT:USDT
+  base_timeframe: 15m
+  context_timeframe: 1h
+
+strategy:
+  strategy_id: hybrid_v2c
+  long_enabled: true
+  short_enabled: false
+
+risk:
+  profile_name: balanced
+  risk_per_trade_pct: 1.0
+  max_leverage: 5.0
+  max_daily_loss_pct: 3.0
+  max_drawdown_pct: 15.0
+  max_pair_exposure_pct: 30.0
+  max_total_exposure_pct: 80.0
+
+execution:
+  profile_name: balanced
+  entry_order_type: limit
+  slippage_model: BASE
+  slippage_pct: 0.05
+
+ai:
+  enabled: false

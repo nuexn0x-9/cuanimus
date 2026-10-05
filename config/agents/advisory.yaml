@@ -1,0 +1,20 @@
+agent_id: "cuanimus-advisory"
+name: "CUANIMUS Advisory Agent"
+role: "ADVISORY"
+allowed_environments:
+  - "paper"
+  - "testnet"
+allowed_symbols:
+  - "BTC/USDT:USDT"
+  - "ETH/USDT:USDT"
+  - "SOL/USDT:USDT"
+allowed_strategies:
+  - "v2_pullback"
+  - "baseline_v0"
+  - "conservative_ema"
+max_risk_per_trade_pct: 1.5
+max_leverage: 3.0
+max_daily_loss_pct: 3.0
+max_orders_per_minute: 5
+require_two_step_intent: true
+require_mandatory_stop_loss: true

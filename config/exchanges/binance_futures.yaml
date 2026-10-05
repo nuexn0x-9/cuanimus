@@ -1,0 +1,10 @@
+exchange:
+  provider: binance
+  market_type: futures
+  environment: testnet
+  quote_asset: USDT
+  maker_fee_pct: 0.02
+  taker_fee_pct: 0.05
+  rate_limit_per_minute: 1200
+  timeout_seconds: 10.0
+  recv_window_ms: 5000

@@ -1,0 +1,16 @@
+risk:
+  profile_name: conservative
+  risk_per_trade_pct: 0.5
+  max_leverage: 3.0
+  max_daily_loss_pct: 1.5
+  max_drawdown_pct: 10.0
+  max_pair_exposure_pct: 20.0
+  max_total_exposure_pct: 50.0
+  consecutive_loss_pair_threshold: 2
+  consecutive_loss_pair_cooldown_hours: 6.0
+  consecutive_loss_portfolio_threshold: 3
+  consecutive_loss_portfolio_cooldown_hours: 24.0
+  emergency_stop_enabled: true
+  capital_preservation_lock: true
+  drawdown_leverage_throttle_threshold_pct: 6.0
+  drawdown_throttled_leverage: 1.5

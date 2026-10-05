@@ -1,0 +1,58 @@
+{
+  "total_trades": 18,
+  "win_count": 9,
+  "loss_count": 9,
+  "win_rate": 50.0,
+  "avg_win_pct": 8.6,
+  "avg_loss_pct": -4.56,
+  "avg_win_abs": 1.344,
+  "avg_loss_abs": -0.7519,
+  "payoff_ratio": 1.886,
+  "profit_factor": 1.788,
+  "expectancy_pct": 2.019,
+  "expectancy_abs": 0.2961,
+  "total_net_pnl": 5.33,
+  "total_return_pct": 8.2,
+  "max_drawdown_abs": 3.98,
+  "max_drawdown_pct": 5.84,
+  "recovery_factor": 1.34,
+  "max_consecutive_losses": 5,
+  "largest_win_pct": 15.11,
+  "largest_loss_pct": -7.02,
+  "total_turnover": 293.3,
+  "total_fees": 0.8095,
+  "total_funding": 0.0185,
+  "avg_duration_minutes": 339.2,
+  "avg_mae_pct": -1.8,
+  "avg_mfe_pct": 2.1,
+  "avg_r_multiple": 1.346,
+  "pair_breakdown": {
+    "ADA/USDT:USDT": {
+      "trades": 3,
+      "wins": 1,
+      "pnl": -0.17952558751185
+    },
+    "ETH/USDT:USDT": {
+      "trades": 10,
+      "wins": 6,
+      "pnl": 4.328105543201994
+    },
+    "XRP/USDT:USDT": {
+      "trades": 5,
+      "wins": 2,
+      "pnl": 1.180765336909325
+    }
+  },
+  "side_breakdown": {
+    "LONG": {
+      "trades": 18,
+      "wins": 9,
+      "pnl": 5.329345292599468
+    },
+    "SHORT": {
+      "trades": 0,
+      "wins": 0,
+      "pnl": 0.0
+    }
+  }
+}

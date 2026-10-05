@@ -1,0 +1,290 @@
+{
+  "exchange": "binance",
+  "market_type": "futures",
+  "acquisition_timestamp": "2026-10-05T01:20:07.379527+00:00",
+  "period": {
+    "start_utc": "2026-06-25T00:00:00+00:00",
+    "end_utc": "2026-10-02T23:59:59+00:00",
+    "start_ms": 1782345600000,
+    "end_ms": 1790985599000
+  },
+  "datasets": {
+    "ADA/USDT:USDT_15m": {
+      "symbol": "ADA/USDT:USDT",
+      "raw_symbol": "ADAUSDT",
+      "timeframe": "15m",
+      "row_count": 9600,
+      "file_path": "/freqtrade/user_data/data/binance/futures/ADA_USDT_USDT-15m-futures.feather",
+      "json_path": "/freqtrade/user_data/data/binance/futures/ADA_USDT_USDT-15m-futures.json",
+      "file_size_bytes": 239010,
+      "sha256": "85b9e393b02816095dbac01a898e2699e524ca6f68c66a88709f94834aadeca2",
+      "first_candle": {
+        "date": "2026-06-25T00:00:00+00:00",
+        "open": 0.1475,
+        "close": 0.1483
+      },
+      "last_candle": {
+        "date": "2026-10-02T23:45:00+00:00",
+        "open": 0.2445,
+        "close": 0.2444
+      },
+      "integrity": {
+        "is_valid": true,
+        "row_count": 9600,
+        "anomalies": [],
+        "gap_count": 0,
+        "gap_details": []
+      }
+    },
+    "ADA/USDT:USDT_1h": {
+      "symbol": "ADA/USDT:USDT",
+      "raw_symbol": "ADAUSDT",
+      "timeframe": "1h",
+      "row_count": 2400,
+      "file_path": "/freqtrade/user_data/data/binance/futures/ADA_USDT_USDT-1h-futures.feather",
+      "json_path": "/freqtrade/user_data/data/binance/futures/ADA_USDT_USDT-1h-futures.json",
+      "file_size_bytes": 70618,
+      "sha256": "c4f90ace5f94dae7e95a001e9f76259aa0ca4f55e79f4653b2f7ad2aff4ac3a3",
+      "first_candle": {
+        "date": "2026-06-25T00:00:00+00:00",
+        "open": 0.1475,
+        "close": 0.1476
+      },
+      "last_candle": {
+        "date": "2026-10-02T23:00:00+00:00",
+        "open": 0.2419,
+        "close": 0.2444
+      },
+      "integrity": {
+        "is_valid": true,
+        "row_count": 2400,
+        "anomalies": [],
+        "gap_count": 0,
+        "gap_details": []
+      }
+    },
+    "ADA/USDT:USDT_1m": {
+      "symbol": "ADA/USDT:USDT",
+      "raw_symbol": "ADAUSDT",
+      "timeframe": "1m",
+      "row_count": 144000,
+      "file_path": "/freqtrade/user_data/data/binance/futures/ADA_USDT_USDT-1m-futures.feather",
+      "json_path": "/freqtrade/user_data/data/binance/futures/ADA_USDT_USDT-1m-futures.json",
+      "file_size_bytes": 3021482,
+      "sha256": "bd0cecec14da6fb38660d587d121840893c1798548cb748a33a033a08e5f3ca2",
+      "first_candle": {
+        "date": "2026-06-25T00:00:00+00:00",
+        "open": 0.1475,
+        "close": 0.1478
+      },
+      "last_candle": {
+        "date": "2026-10-02T23:59:00+00:00",
+        "open": 0.2444,
+        "close": 0.2444
+      },
+      "integrity": {
+        "is_valid": true,
+        "row_count": 144000,
+        "anomalies": [],
+        "gap_count": 0,
+        "gap_details": []
+      }
+    },
+    "ETH/USDT:USDT_15m": {
+      "symbol": "ETH/USDT:USDT",
+      "raw_symbol": "ETHUSDT",
+      "timeframe": "15m",
+      "row_count": 9600,
+      "file_path": "/freqtrade/user_data/data/binance/futures/ETH_USDT_USDT-15m-futures.feather",
+      "json_path": "/freqtrade/user_data/data/binance/futures/ETH_USDT_USDT-15m-futures.json",
+      "file_size_bytes": 280954,
+      "sha256": "5286e1182e5e252d688075a7804da9b086a4f25955209e8cf484d67650a2da3b",
+      "first_candle": {
+        "date": "2026-06-25T00:00:00+00:00",
+        "open": 1621.55,
+        "close": 1624.6
+      },
+      "last_candle": {
+        "date": "2026-10-02T23:45:00+00:00",
+        "open": 2668.13,
+        "close": 2667.28
+      },
+      "integrity": {
+        "is_valid": true,
+        "row_count": 9600,
+        "anomalies": [],
+        "gap_count": 0,
+        "gap_details": []
+      }
+    },
+    "ETH/USDT:USDT_1h": {
+      "symbol": "ETH/USDT:USDT",
+      "raw_symbol": "ETHUSDT",
+      "timeframe": "1h",
+      "row_count": 2400,
+      "file_path": "/freqtrade/user_data/data/binance/futures/ETH_USDT_USDT-1h-futures.feather",
+      "json_path": "/freqtrade/user_data/data/binance/futures/ETH_USDT_USDT-1h-futures.json",
+      "file_size_bytes": 74962,
+      "sha256": "1f8c10d0ec8d792a149f9c69b36522a6ac7cab164eddb9840641f03715dcddbf",
+      "first_candle": {
+        "date": "2026-06-25T00:00:00+00:00",
+        "open": 1621.55,
+        "close": 1618.23
+      },
+      "last_candle": {
+        "date": "2026-10-02T23:00:00+00:00",
+        "open": 2666.59,
+        "close": 2667.28
+      },
+      "integrity": {
+        "is_valid": true,
+        "row_count": 2400,
+        "anomalies": [],
+        "gap_count": 0,
+        "gap_details": []
+      }
+    },
+    "ETH/USDT:USDT_1m": {
+      "symbol": "ETH/USDT:USDT",
+      "raw_symbol": "ETHUSDT",
+      "timeframe": "1m",
+      "row_count": 144000,
+      "file_path": "/freqtrade/user_data/data/binance/futures/ETH_USDT_USDT-1m-futures.feather",
+      "json_path": "/freqtrade/user_data/data/binance/futures/ETH_USDT_USDT-1m-futures.json",
+      "file_size_bytes": 3862498,
+      "sha256": "1d626eaa4492509723c840b453275658ed4721a0dc43ba70313b8cb260be0c17",
+      "first_candle": {
+        "date": "2026-06-25T00:00:00+00:00",
+        "open": 1621.55,
+        "close": 1621.36
+      },
+      "last_candle": {
+        "date": "2026-10-02T23:59:00+00:00",
+        "open": 2667.31,
+        "close": 2667.28
+      },
+      "integrity": {
+        "is_valid": true,
+        "row_count": 144000,
+        "anomalies": [],
+        "gap_count": 0,
+        "gap_details": []
+      }
+    },
+    "XRP/USDT:USDT_15m": {
+      "symbol": "XRP/USDT:USDT",
+      "raw_symbol": "XRPUSDT",
+      "timeframe": "15m",
+      "row_count": 9600,
+      "file_path": "/freqtrade/user_data/data/binance/futures/XRP_USDT_USDT-15m-futures.feather",
+      "json_path": "/freqtrade/user_data/data/binance/futures/XRP_USDT_USDT-15m-futures.json",
+      "file_size_bytes": 262818,
+      "sha256": "79c1fd4d5a959eef615db3f4c9e5eb8cc62c5e085f85f72e65108c04067af684",
+      "first_candle": {
+        "date": "2026-06-25T00:00:00+00:00",
+        "open": 1.0729,
+        "close": 1.0753
+      },
+      "last_candle": {
+        "date": "2026-10-02T23:45:00+00:00",
+        "open": 1.4852,
+        "close": 1.484
+      },
+      "integrity": {
+        "is_valid": true,
+        "row_count": 9600,
+        "anomalies": [],
+        "gap_count": 0,
+        "gap_details": []
+      }
+    },
+    "XRP/USDT:USDT_1h": {
+      "symbol": "XRP/USDT:USDT",
+      "raw_symbol": "XRPUSDT",
+      "timeframe": "1h",
+      "row_count": 2400,
+      "file_path": "/freqtrade/user_data/data/binance/futures/XRP_USDT_USDT-1h-futures.feather",
+      "json_path": "/freqtrade/user_data/data/binance/futures/XRP_USDT_USDT-1h-futures.json",
+      "file_size_bytes": 75634,
+      "sha256": "ad428595b35b6e3956c39ec36d9d6954bbc29352712d9fd1154da4d505f7f37a",
+      "first_candle": {
+        "date": "2026-06-25T00:00:00+00:00",
+        "open": 1.0729,
+        "close": 1.0734
+      },
+      "last_candle": {
+        "date": "2026-10-02T23:00:00+00:00",
+        "open": 1.4797,
+        "close": 1.484
+      },
+      "integrity": {
+        "is_valid": true,
+        "row_count": 2400,
+        "anomalies": [],
+        "gap_count": 0,
+        "gap_details": []
+      }
+    },
+    "XRP/USDT:USDT_1m": {
+      "symbol": "XRP/USDT:USDT",
+      "raw_symbol": "XRPUSDT",
+      "timeframe": "1m",
+      "row_count": 144000,
+      "file_path": "/freqtrade/user_data/data/binance/futures/XRP_USDT_USDT-1m-futures.feather",
+      "json_path": "/freqtrade/user_data/data/binance/futures/XRP_USDT_USDT-1m-futures.json",
+      "file_size_bytes": 3382538,
+      "sha256": "91a37027f8fd02b6decf732c0881d825000740fe0437e35d046eae4b581a3256",
+      "first_candle": {
+        "date": "2026-06-25T00:00:00+00:00",
+        "open": 1.0729,
+        "close": 1.0726
+      },
+      "last_candle": {
+        "date": "2026-10-02T23:59:00+00:00",
+        "open": 1.484,
+        "close": 1.484
+      },
+      "integrity": {
+        "is_valid": true,
+        "row_count": 144000,
+        "anomalies": [],
+        "gap_count": 0,
+        "gap_details": []
+      }
+    }
+  },
+  "funding_datasets": {
+    "ADA/USDT:USDT": {
+      "symbol": "ADA/USDT:USDT",
+      "row_count": 300,
+      "file_path": "/freqtrade/user_data/data/binance/futures/ADA_USDT_USDT-1h-funding_rate.feather",
+      "json_path": "/freqtrade/user_data/data/binance/futures/ADA_USDT_USDT-funding_rate.json",
+      "sha256": "fa4d001d76170a5fd9aba745397d4fcef6fb6324589405c725d326782b6eab5c",
+      "first_record": "2026-06-25T00:00:00+00:00",
+      "last_record": "2026-10-02T16:00:00+00:00"
+    },
+    "ETH/USDT:USDT": {
+      "symbol": "ETH/USDT:USDT",
+      "row_count": 300,
+      "file_path": "/freqtrade/user_data/data/binance/futures/ETH_USDT_USDT-1h-funding_rate.feather",
+      "json_path": "/freqtrade/user_data/data/binance/futures/ETH_USDT_USDT-funding_rate.json",
+      "sha256": "2b1f308404802ffbaf8c162dc4929df120e43d91ba27f240935d3c64756bacad",
+      "first_record": "2026-06-25T00:00:00+00:00",
+      "last_record": "2026-10-02T16:00:00+00:00"
+    },
+    "XRP/USDT:USDT": {
+      "symbol": "XRP/USDT:USDT",
+      "row_count": 300,
+      "file_path": "/freqtrade/user_data/data/binance/futures/XRP_USDT_USDT-1h-funding_rate.feather",
+      "json_path": "/freqtrade/user_data/data/binance/futures/XRP_USDT_USDT-funding_rate.json",
+      "sha256": "84aa446ee1fe23662d619540a0e6c7fbfc44fb63d5b9c8808838433c9ece5c00",
+      "first_record": "2026-06-25T00:00:00+00:00",
+      "last_record": "2026-10-02T16:00:00+00:00"
+    }
+  },
+  "integrity_summary": {
+    "all_passed": true,
+    "total_gaps": 0,
+    "notes": []
+  }
+}

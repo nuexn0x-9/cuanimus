@@ -1,0 +1,35 @@
+# CUANIMUS Conservative Preset Profile
+environment:
+  env_name: paper
+  dry_run: true
+  live_trading_enabled: false
+
+market:
+  pairs:
+    - ETH/USDT:USDT
+    - XRP/USDT:USDT
+  base_timeframe: 15m
+  context_timeframe: 1h
+
+strategy:
+  strategy_id: hybrid_v2c
+  long_enabled: true
+  short_enabled: false
+
+risk:
+  profile_name: conservative
+  risk_per_trade_pct: 0.5
+  max_leverage: 3.0
+  max_daily_loss_pct: 2.0
+  max_drawdown_pct: 10.0
+  max_pair_exposure_pct: 20.0
+  max_total_exposure_pct: 60.0
+
+execution:
+  profile_name: conservative
+  entry_order_type: limit
+  slippage_model: CONSERVATIVE
+  slippage_pct: 0.10
+
+ai:
+  enabled: false
