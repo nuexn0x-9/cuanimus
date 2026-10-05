@@ -239,12 +239,43 @@ class McpServer:
 
                 # Extract bearer token if present
                 auth_header = self.headers.get("Authorization", "")
-                token = auth_header.replace("Bearer ", "").strip() if auth_header.startswith("Bearer ") else None
+                token = auth_header.replace("Bearer ", "").strip() if auth_header.startswith("Bearer ") else (auth_header.strip() if auth_header else None)
 
                 agent = None
+                from cuanimus.mcp.tokens import McpTokenManager
+                token_mgr = McpTokenManager()
+
                 if token:
-                    # Authenticate agent
-                    agent = AgentIdentityRegistry.authenticate("trader-paper", token)
+                    # Authenticate agent via McpTokenManager
+                    agent_auth = token_mgr.authenticate_token(token)
+                    if agent_auth:
+                        from cuanimus.agent.identity import ROLE_DEFAULT_PERMISSIONS
+                        role = AgentRole.TRADER if "EXECUTE" in agent_auth.get("allowed_domains", []) else AgentRole.ADVISORY
+                        agent = AgentIdentity(
+                            agent_id=agent_auth["agent_id"],
+                            name=agent_auth["agent_id"],
+                            role=role,
+                            permissions=ROLE_DEFAULT_PERMISSIONS.get(role, set()),
+                        )
+                    else:
+                        # Fallback to AgentIdentityRegistry check
+                        agent = AgentIdentityRegistry.authenticate("trader-paper", token)
+
+                # If calling a tool, check domain rate limit
+                try:
+                    payload = json.loads(body)
+                    if payload.get("method") == "tools/call" and agent:
+                        tool_name = (payload.get("params") or {}).get("name", "")
+                        allowed, limit_err = token_mgr.check_rate_limit(agent.agent_id, tool_name)
+                        if not allowed:
+                            resp = error_response(payload.get("id"), -32000, limit_err or "Rate limit exceeded")
+                            self.send_response(429)
+                            self.send_header("Content-Type", "application/json")
+                            self.end_headers()
+                            self.wfile.write(json.dumps(resp).encode("utf-8"))
+                            return
+                except Exception:
+                    pass
 
                 resp = server_instance.handle_message(body, agent=agent)
 

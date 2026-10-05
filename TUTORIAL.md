@@ -336,7 +336,9 @@ CUANIMUS menyediakan antarmuka web modern kelas workstation yang **100% tanpa bu
 | :--- | :--- | :--- |
 | **Sistem** | `./cuanimus-cli doctor` | Diagnosis kesehatan sistem dan environment |
 | | `./cuanimus-cli status` | Status platform dan safety lock aktif |
-| **Web UI** | `./cuanimus-cli ui start` | Menjalankan Web Control Center HTTP Daemon |
+| **Web UI** | `./cuanimus-cli ui bootstrap` | Bootstrap kredensial administrator awal |
+| | `./cuanimus-cli ui start --daemon` | Menjalankan Web Control Center di background (port 8888) |
+| | `./cuanimus-cli ui stop` | Menghentikan daemon Web Control Center |
 | | `./cuanimus-cli ui status` | Status endpoint dan sesi Web Control Center |
 | **Config** | `./cuanimus-cli init --preset <name>` | Inisialisasi konfigurasi profil |
 | | `./cuanimus-cli config validate` | Validasi skema & keselamatan konfigurasi |
@@ -352,9 +354,44 @@ CUANIMUS menyediakan antarmuka web modern kelas workstation yang **100% tanpa bu
 | **Agent** | `./cuanimus-cli agent init` | Buat kebijakan agent & config MCP client |
 | | `./cuanimus-cli agent validate` | Validasi aturan kebijakan agent |
 | | `./cuanimus-cli agent list` | Daftar agent dan preset kebijakan |
-| **MCP** | `./cuanimus-cli mcp start` | Jalankan MCP JSON-RPC Server |
+| | `./cuanimus-cli agent token-list` | Daftar token bearer MCP AI Agent |
+| | `./cuanimus-cli agent token-rotate` | Rotasi token bearer untuk agent tertentu |
+| | `./cuanimus-cli agent token-revoke` | Cabut akses token bearer agent seketika |
+| | `./cuanimus-cli agent test-connection`| Uji autentikasi dan status koneksi agent |
+| **MCP** | `./cuanimus-cli mcp start --transport http --daemon` | Jalankan MCP JSON-RPC Server di background |
+| | `./cuanimus-cli mcp stop` | Menghentikan daemon MCP server |
 | | `./cuanimus-cli mcp status` | Status MCP server & safety mode |
 | | `./cuanimus-cli mcp tools` | Daftar 46 tool MCP |
+| **Backup** | `./cuanimus-cli backup create` | Buat snapshot atomic database & konfigurasi |
+| | `./cuanimus-cli backup verify` | Verifikasi integritas bit-exact SHA256 backup |
+| | `./cuanimus-cli backup list` | Daftar riwayat snapshot backup |
+
+---
+
+## 12. Panduan Deployment Server Produksi & Akses Remote
+
+Untuk menjalankan CUANIMUS pada server Linux produksi secara aman:
+
+1. **Bootstrap Admin**:
+   ```bash
+   ./cuanimus-cli ui bootstrap
+   ```
+2. **Jalankan Daemon**:
+   ```bash
+   ./cuanimus-cli ui start --daemon --port 8888
+   ```
+3. **Koneksi Aman Melalui SSH Tunnel (dari laptop/workstation)**:
+   ```bash
+   ssh -N -L 8888:127.0.0.1:8888 user@ip-server
+   ```
+   Buka browser di `http://localhost:8888/` dan login dengan akun admin yang telah di-bootstrap.
+
+Dokumentasi teknis lengkap tersedia di folder `docs/10-deployment/`:
+- [Quickstart Panduan Deployment](docs/10-deployment/GETTING_STARTED.md)
+- [Arsitektur Keamanan Web & RBAC](docs/10-deployment/WEB_ACCESS.md)
+- [Konfigurasi MCP Server & Scoped Token](docs/10-deployment/MCP_SETUP.md)
+- [Operasional & Disaster Recovery](docs/10-deployment/OPERATIONS.md)
+- [Panduan Pemecahan Masalah (Troubleshooting)](docs/10-deployment/TROUBLESHOOTING.md)
 
 ---
 

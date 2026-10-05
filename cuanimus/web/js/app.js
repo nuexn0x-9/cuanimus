@@ -21,6 +21,8 @@ class CuanimusApp {
     this._bindNavigation();
     this._bindGlobalHeader();
 
+    await this.checkAuthStatus();
+
     // Route from hash or default
     const hash = window.location.hash.replace('#', '') || 'overview';
     this.navigate(hash);
@@ -30,6 +32,31 @@ class CuanimusApp {
 
     // Start auto-refresh polling loop (every 3 seconds)
     this.startAutoRefresh();
+  }
+
+  async checkAuthStatus() {
+    try {
+      const auth = await API.getAuthMe();
+      this.currentUser = auth;
+      const userBtn = document.getElementById('btn-header-auth');
+      if (userBtn) {
+        if (auth && auth.authenticated) {
+          userBtn.innerHTML = `👤 ${auth.username} [${auth.role}]`;
+          userBtn.title = "Click to Sign Out";
+          userBtn.onclick = async () => {
+            if (confirm(`Sign out from ${auth.username}?`)) {
+              await API.logout();
+              Toast.info("Signed out");
+              this.checkAuthStatus();
+            }
+          };
+        } else {
+          userBtn.innerHTML = `🔑 Sign In`;
+          userBtn.title = "Click to Sign In";
+          userBtn.onclick = () => Modals.showLoginModal();
+        }
+      }
+    } catch (_) {}
   }
 
   startAutoRefresh() {

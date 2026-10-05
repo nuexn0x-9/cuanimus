@@ -56,6 +56,66 @@ const Modals = {
     if (el) el.classList.remove('active');
   },
 
+  // User Login Modal
+  showLoginModal(onSuccess = null) {
+    const modalHtml = `
+      <div id="modal-login" class="modal-overlay active">
+        <div class="modal-box" style="max-width: 420px;">
+          <div class="modal-header">
+            <div class="modal-title" style="display: flex; align-items: center; gap: 8px;">
+              <span>🔐</span> CUANIMUS AUTHENTICATION
+            </div>
+            <button class="modal-close" onclick="Modals.close('modal-login')">✕</button>
+          </div>
+          <div class="modal-body">
+            <p style="color: #9baac3; margin-bottom: 14px; font-size: 12px;">
+              Sign in with your Operator or Administrator credentials to unlock trading controls.
+            </p>
+            <div style="margin-bottom: 12px;">
+              <label style="display: block; font-size: 11px; color: #9baac3; margin-bottom: 4px;">Username</label>
+              <input type="text" id="login-username" class="cmd-input" style="border: 1px solid #334155; border-radius: 4px; padding: 8px 12px;" placeholder="admin" autofocus>
+            </div>
+            <div style="margin-bottom: 14px;">
+              <label style="display: block; font-size: 11px; color: #9baac3; margin-bottom: 4px;">Password</label>
+              <input type="password" id="login-password" class="cmd-input" style="border: 1px solid #334155; border-radius: 4px; padding: 8px 12px;" placeholder="••••••••••••">
+            </div>
+            <div id="login-error-msg" style="color: #f73859; font-size: 11px; margin-bottom: 8px; display: none;"></div>
+          </div>
+          <div class="modal-footer">
+            <button class="btn btn-primary" id="btn-submit-login" style="width: 100%;">Sign In</button>
+          </div>
+        </div>
+      </div>
+    `;
+
+    const old = document.getElementById('modal-login');
+    if (old) old.remove();
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+    const submit = async () => {
+      const u = document.getElementById('login-username').value.trim();
+      const p = document.getElementById('login-password').value;
+      const errBox = document.getElementById('login-error-msg');
+      if (!u || !p) return;
+
+      try {
+        const res = await API.login(u, p);
+        Toast.success(`Welcome back, ${res.username} [${res.role}]!`);
+        Modals.close('modal-login');
+        if (onSuccess) onSuccess(res);
+        if (window.app) window.app.checkAuthStatus();
+      } catch (err) {
+        errBox.textContent = err.message || "Invalid credentials";
+        errBox.style.display = 'block';
+      }
+    };
+
+    document.getElementById('btn-submit-login').addEventListener('click', submit);
+    document.getElementById('login-password').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') submit();
+    });
+  },
+
   // Emergency Stop Confirmation Modal
   showEmergencyStopModal() {
     const modalHtml = `

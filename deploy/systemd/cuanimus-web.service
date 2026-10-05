@@ -1,0 +1,22 @@
+[Unit]
+Description=CUANIMUS Production Web Control Center & REST API
+After=network.target
+
+[Service]
+Type=simple
+User=zero
+WorkingDirectory=/home/zero/ai-gemini-futures-bot
+ExecStart=/usr/bin/python3 -m cuanimus.cli ui start --host 127.0.0.1 --port 8888
+Restart=always
+RestartSec=5s
+Environment=PYTHONUNBUFFERED=1
+StandardOutput=journal
+StandardError=journal
+
+# Bounded Resource Ceilings
+LimitNOFILE=65535
+MemoryHigh=250M
+MemoryMax=350M
+
+[Install]
+WantedBy=multi-user.target

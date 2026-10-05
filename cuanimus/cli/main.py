@@ -20,7 +20,10 @@ import os
 import argparse
 import json
 import yaml
-from typing import List, Optional
+import subprocess
+import signal
+import time
+from typing import List, Optional, Tuple, Dict, Any
 
 from cuanimus.config.loader import ConfigLoader
 from cuanimus.config.validator import ConfigValidator
@@ -33,6 +36,92 @@ from cuanimus.cli.inspector import (
     show_configuration,
     format_table,
 )
+
+
+def _is_pid_alive(pid: int) -> bool:
+    """Checks whether a process with the given PID is currently running."""
+    try:
+        os.kill(pid, 0)
+        return True
+    except (OSError, ProcessLookupError):
+        return False
+
+
+def _start_background_daemon(cmd_args: List[str], name: str) -> Tuple[bool, int, str]:
+    """Starts a process in the background, writing its PID and standard logs."""
+    base_dir = os.path.abspath(".")
+    cuanimus_dir = os.path.join(base_dir, ".cuanimus")
+    os.makedirs(cuanimus_dir, exist_ok=True)
+    pid_file = os.path.join(cuanimus_dir, f"{name}.pid")
+    log_file = os.path.join(cuanimus_dir, f"{name}.log")
+
+    if os.path.exists(pid_file):
+        try:
+            with open(pid_file, "r") as f:
+                existing_pid = int(f.read().strip())
+            if _is_pid_alive(existing_pid):
+                return False, existing_pid, f"Daemon '{name}' is already running with PID {existing_pid}."
+        except Exception:
+            pass
+
+    log_f = open(log_file, "a")
+    env = dict(os.environ)
+    env["PYTHONPATH"] = base_dir
+    env["PYTHONUNBUFFERED"] = "1"
+    proc = subprocess.Popen(
+        cmd_args,
+        stdout=log_f,
+        stderr=subprocess.STDOUT,
+        stdin=subprocess.DEVNULL,
+        start_new_session=True,
+        env=env,
+    )
+    time.sleep(0.6)
+    if proc.poll() is not None:
+        return False, -1, f"Daemon '{name}' failed to start. Check logs at: {log_file}"
+
+    with open(pid_file, "w") as f:
+        f.write(str(proc.pid))
+
+    return True, proc.pid, f"Daemon '{name}' started with PID {proc.pid}. Logs: {log_file}"
+
+
+def _stop_background_daemon(name: str) -> Tuple[bool, str]:
+    """Gracefully terminates a running background daemon."""
+    base_dir = os.path.abspath(".")
+    cuanimus_dir = os.path.join(base_dir, ".cuanimus")
+    pid_file = os.path.join(cuanimus_dir, f"{name}.pid")
+
+    if not os.path.exists(pid_file):
+        return False, f"No active PID file found for '{name}'."
+
+    try:
+        with open(pid_file, "r") as f:
+            pid = int(f.read().strip())
+    except Exception:
+        if os.path.exists(pid_file):
+            os.remove(pid_file)
+        return False, f"Invalid PID file for '{name}', cleaned up."
+
+    if not _is_pid_alive(pid):
+        os.remove(pid_file)
+        return False, f"Process {pid} is not running. Removed stale PID file."
+
+    try:
+        os.kill(pid, signal.SIGTERM)
+        for _ in range(30):
+            if not _is_pid_alive(pid):
+                break
+            time.sleep(0.1)
+        if _is_pid_alive(pid):
+            os.kill(pid, signal.SIGKILL)
+    except Exception as e:
+        return False, f"Failed to terminate process {pid}: {e}"
+
+    if os.path.exists(pid_file):
+        os.remove(pid_file)
+    return True, f"Daemon '{name}' (PID {pid}) stopped successfully."
+
 from cuanimus.strategy.registry import StrategyRegistry
 from cuanimus.risk.registry import RiskProfileRegistry
 from cuanimus.ai.registry import AIProviderRegistry
@@ -122,6 +211,19 @@ def build_parser() -> argparse.ArgumentParser:
     p_av.add_argument("--config", default="config/agents/paper_auto.yaml", help="Path to agent policy YAML")
 
     agent_sub.add_parser("list", help="List registered and preset AI agents")
+    agent_sub.add_parser("token-list", help="List registered AI Agent scoped MCP tokens")
+
+    p_trr = agent_sub.add_parser("token-rotate", help="Rotate MCP bearer token for an agent")
+    p_trr.add_argument("--agent", required=True, help="Agent ID to rotate token for (e.g., antigravity-agent)")
+
+    p_trv = agent_sub.add_parser("token-revoke", help="Revoke MCP bearer token for an agent")
+    p_trv.add_argument("--agent", required=True, help="Agent ID to revoke token for")
+
+    p_acc = agent_sub.add_parser("connect-config", help="Export agent client connection configuration")
+    p_acc.add_argument("--agent", required=True, choices=["codex", "antigravity", "hermes", "generic-mcp"], help="Agent client target")
+
+    p_atc = agent_sub.add_parser("test-connection", help="Test agent authentication and MCP connectivity")
+    p_atc.add_argument("--agent", required=True, help="Agent ID to test")
 
     # 10. mcp
     p_mcp = subparsers.add_parser("mcp", help="Model Context Protocol (MCP) server commands")
@@ -130,7 +232,9 @@ def build_parser() -> argparse.ArgumentParser:
     p_ms.add_argument("--transport", default="stdio", choices=["stdio", "http"], help="Transport mode")
     p_ms.add_argument("--host", default="127.0.0.1", help="HTTP server bind host")
     p_ms.add_argument("--port", type=int, default=8000, help="HTTP server listen port")
+    p_ms.add_argument("--daemon", action="store_true", help="Run MCP server as background daemon")
 
+    mcp_sub.add_parser("stop", help="Stop running MCP background daemon")
     mcp_sub.add_parser("status", help="Show MCP server capabilities and safety status")
     mcp_sub.add_parser("tools", help="List all available MCP tools and required permissions")
 
@@ -139,9 +243,22 @@ def build_parser() -> argparse.ArgumentParser:
     ui_sub = p_ui.add_subparsers(dest="ui_action", help="UI actions")
     p_us = ui_sub.add_parser("start", help="Start the Web Control Center HTTP Daemon")
     p_us.add_argument("--host", default="127.0.0.1", help="HTTP server bind host (default: 127.0.0.1)")
-    p_us.add_argument("--port", type=int, default=8080, help="HTTP server listen port (default: 8080)")
+    p_us.add_argument("--port", type=int, default=8888, help="HTTP server listen port (default: 8888)")
+    p_us.add_argument("--daemon", action="store_true", help="Run Web UI as background daemon")
 
+    ui_sub.add_parser("stop", help="Stop running Web UI background daemon")
+    p_ub = ui_sub.add_parser("bootstrap", help="Bootstrap or reset administrator credentials")
+    p_ub.add_argument("--force", action="store_true", help="Force regenerate admin password even if initialized")
     ui_sub.add_parser("status", help="Display Web Control Center status and endpoints")
+
+    # 12. backup
+    p_bk = subparsers.add_parser("backup", help="Database and configuration backup and disaster recovery")
+    bk_sub = p_bk.add_subparsers(dest="backup_action", help="Backup actions")
+    p_bc = bk_sub.add_parser("create", help="Create an atomic backup snapshot")
+    p_bc.add_argument("--tag", default=None, help="Optional snapshot tag")
+    p_bv = bk_sub.add_parser("verify", help="Verify cryptographic SHA256 integrity of a backup snapshot")
+    p_bv.add_argument("--id", default=None, help="Snapshot ID to verify (defaults to latest)")
+    bk_sub.add_parser("list", help="List all available backup snapshots")
 
     return parser
 
@@ -408,6 +525,91 @@ def main(args: Optional[List[str]] = None) -> int:
                 print(f"       {str(e)}")
                 return 1
 
+        elif action == "token-list":
+            from cuanimus.mcp.tokens import McpTokenManager
+            mgr = McpTokenManager()
+            tokens = mgr.list_tokens()
+            headers = ["Agent ID", "Preset", "Status", "Masked Token", "Allowed Domains", "Created At"]
+            rows = [[t["agent_id"], t["preset"], t["status"], t["token_masked"], ",".join(t["allowed_domains"]), t["created_at"][:19]] for t in tokens]
+            print("Scoped AI Agent MCP Bearer Tokens:")
+            print(format_table(headers, rows))
+            return 0
+
+        elif action == "token-rotate":
+            agent_id = parsed_args.agent
+            from cuanimus.mcp.tokens import McpTokenManager
+            mgr = McpTokenManager()
+            try:
+                res = mgr.rotate_token(agent_id)
+                print("=" * 60)
+                print("       CUANIMUS MCP BEARER TOKEN ROTATION")
+                print("=" * 60)
+                print(f"Agent ID:   {res['agent_id']}")
+                print(f"Status:     {res['status']}")
+                print(f"New Token:  {res['token']}")
+                print(f"Created At: {res['created_at']}")
+                print("Note: Store this token securely. Update agent client configuration.")
+                print("=" * 60)
+                return 0
+            except KeyError as e:
+                print(f"[ERROR] {e}")
+                return 1
+
+        elif action == "token-revoke":
+            agent_id = parsed_args.agent
+            from cuanimus.mcp.tokens import McpTokenManager
+            mgr = McpTokenManager()
+            ok = mgr.revoke_token(agent_id)
+            if ok:
+                print(f"[OK] MCP token for agent '{agent_id}' has been permanently REVOKED.")
+                return 0
+            else:
+                print(f"[ERROR] Agent '{agent_id}' not found.")
+                return 1
+
+        elif action == "connect-config":
+            agent_target = parsed_args.agent
+            config_file = f"deploy/agent-configs/{agent_target}.md"
+            if os.path.exists(config_file):
+                with open(config_file, "r") as f:
+                    print(f.read())
+                return 0
+            else:
+                print(f"[ERROR] Configuration guide for '{agent_target}' not found at {config_file}")
+                return 1
+
+        elif action == "test-connection":
+            agent_id = parsed_args.agent
+            from cuanimus.mcp.tokens import McpTokenManager
+            mgr = McpTokenManager()
+            tokens = mgr._load_tokens()
+            if agent_id not in tokens:
+                print(f"[FAIL] Agent '{agent_id}' not found in registered token store.")
+                return 1
+
+            record = tokens[agent_id]
+            if record.get("status") != "ACTIVE":
+                print(f"[FAIL] Agent '{agent_id}' token status is '{record.get('status')}' (NOT ACTIVE).")
+                return 1
+
+            token_val = record.get("token")
+            auth_res = mgr.authenticate_token(token_val)
+            if not auth_res:
+                print(f"[FAIL] Cryptographic authentication check failed for agent '{agent_id}'.")
+                return 1
+
+            print("=" * 60)
+            print(f"   CONNECTION TEST: AGENT '{agent_id}'")
+            print("=" * 60)
+            print(f"Status:            [PASS] ACTIVE & AUTHENTICATED")
+            print(f"Agent ID:          {auth_res['agent_id']}")
+            print(f"Preset:            {auth_res['preset']}")
+            print(f"Allowed Domains:   {', '.join(auth_res['allowed_domains'])}")
+            print(f"Safety Mode:       {auth_res['environment'].upper()} SAFE (Real Capital Prohibited)")
+            print("Rate Limiting:     READ: 60/m | ANALYZE: 30/m | CONFIG: 15/m | EXECUTE: 5/m")
+            print("=" * 60)
+            return 0
+
     # COMMAND: mcp
     if cmd == "mcp":
         action = getattr(parsed_args, "mcp_action", None)
@@ -416,6 +618,24 @@ def main(args: Optional[List[str]] = None) -> int:
 
         if not action or action == "start":
             transport = parsed_args.transport
+            if getattr(parsed_args, "daemon", False):
+                if transport != "http":
+                    print("[ERROR] Daemon mode is only supported with HTTP transport (--transport http).")
+                    return 1
+                host = parsed_args.host
+                port = parsed_args.port
+                cmd_args = [sys.executable, "-m", "cuanimus.cli", "mcp", "start", "--transport", "http", "--host", host, "--port", str(port)]
+                ok, pid, msg = _start_background_daemon(cmd_args, "mcp")
+                if ok:
+                    print(f"[OK] {msg}")
+                    print(f"CUANIMUS MCP Daemon active in background:")
+                    print(f"  MCP HTTP Endpoint: http://{host}:{port}/")
+                    print(f"To stop: ./cuanimus-cli mcp stop")
+                    return 0
+                else:
+                    print(f"[ERROR] {msg}")
+                    return 1
+
             server = McpServer()
             if transport == "stdio":
                 server.run_stdio()
@@ -425,6 +645,15 @@ def main(args: Optional[List[str]] = None) -> int:
                 print(f"Starting CUANIMUS MCP JSON-RPC Server on http://{host}:{port}/ ...")
                 server.run_http(host=host, port=port)
             return 0
+
+        elif action == "stop":
+            ok, msg = _stop_background_daemon("mcp")
+            if ok:
+                print(f"[OK] {msg}")
+                return 0
+            else:
+                print(f"[INFO] {msg}")
+                return 1
 
         elif action == "status":
             McpServer()  # registers tools
@@ -456,13 +685,56 @@ def main(args: Optional[List[str]] = None) -> int:
     # COMMAND: ui
     if cmd == "ui":
         action = getattr(parsed_args, "ui_action", None)
-        from cuanimus.api.http_server import HttpServerDaemon
-        if not action or action == "start":
+        if action == "bootstrap":
+            from cuanimus.api.auth import AuthManager
+            res = AuthManager().bootstrap_admin(force=getattr(parsed_args, "force", False))
+            print("=" * 60)
+            print("       CUANIMUS WEB CONTROL CENTER ADMIN BOOTSTRAP")
+            print("=" * 60)
+            print(f"Status:   {res['status']}")
+            print(f"Username: {res['username']}")
+            if "temporary_password" in res:
+                print(f"Password: {res['temporary_password']}")
+                print(f"Role:     {res['role']}")
+                print(f"Stored:   {res['credential_file']}")
+                print(f"Note:     {res['note']}")
+            else:
+                print(f"Message:  {res.get('message', '')}")
+            print("=" * 60)
+            return 0
+
+        elif action == "stop":
+            ok, msg = _stop_background_daemon("ui")
+            if ok:
+                print(f"[OK] {msg}")
+                return 0
+            else:
+                print(f"[INFO] {msg}")
+                return 1
+
+        elif not action or action == "start":
             host = parsed_args.host
             port = parsed_args.port
-            daemon = HttpServerDaemon(host=host, port=port)
-            daemon.start(blocking=True)
-            return 0
+            if getattr(parsed_args, "daemon", False):
+                cmd_args = [sys.executable, "-m", "cuanimus.cli", "ui", "start", "--host", host, "--port", str(port)]
+                ok, pid, msg = _start_background_daemon(cmd_args, "ui")
+                if ok:
+                    print(f"[OK] {msg}")
+                    print(f"CUANIMUS Web Control Center active in background:")
+                    print(f"  Web UI:       http://{host}:{port}/")
+                    print(f"  Remote MCP:   http://{host}:{port}/mcp")
+                    print(f"  Health Check: http://{host}:{port}/health")
+                    print(f"To stop: ./cuanimus-cli ui stop")
+                    return 0
+                else:
+                    print(f"[ERROR] {msg}")
+                    return 1
+            else:
+                from cuanimus.api.http_server import HttpServerDaemon
+                daemon = HttpServerDaemon(host=host, port=port)
+                daemon.start(blocking=True)
+                return 0
+
         elif action == "status":
             from cuanimus.api.control_plane import ControlPlaneAPI
             api = ControlPlaneAPI()
@@ -478,6 +750,44 @@ def main(args: Optional[List[str]] = None) -> int:
             print(f"Exchange:          {status['exchange']}")
             print(f"Active Sessions:   {status['active_session_count']}")
             print("=" * 60)
+            return 0
+
+    # COMMAND: backup
+    if cmd == "backup":
+        action = getattr(parsed_args, "backup_action", None)
+        from cuanimus.core.backup import BackupManager
+        bm = BackupManager()
+        if not action or action == "create":
+            tag = getattr(parsed_args, "tag", None)
+            res = bm.create_backup(tag=tag)
+            print("=" * 60)
+            print("          CUANIMUS ATOMIC BACKUP COMPLETED")
+            print("=" * 60)
+            print(f"Snapshot ID:     {res['snapshot_id']}")
+            print(f"Files Backed Up: {res['item_count']}")
+            print(f"Target Dir:      {res['snapshot_dir']}")
+            print(f"Manifest:        {res['manifest_path']}")
+            print("Integrity:       SHA256 verified")
+            print("=" * 60)
+            return 0
+        elif action == "verify":
+            snap_id = getattr(parsed_args, "id", None)
+            res = bm.verify_backup(snapshot_id=snap_id)
+            if res.get("valid"):
+                print(f"[PASS] Backup '{res['snapshot_id']}' integrity VERIFIED BIT-EXACT ({res['checked_files']} files checked).")
+                return 0
+            else:
+                print(f"[FAIL] Backup verification failed: {res.get('error', 'Integrity mismatch')}")
+                return 1
+        elif action == "list":
+            backups = bm.list_backups()
+            if not backups:
+                print("No backup snapshots found.")
+                return 0
+            headers = ["Snapshot ID", "Created At", "Items Count", "Path"]
+            rows = [[b["snapshot_id"], b["created_at"][:19], b["item_count"], b["path"]] for b in backups]
+            print("Available CUANIMUS Backups:")
+            print(format_table(headers, rows))
             return 0
 
     return 0

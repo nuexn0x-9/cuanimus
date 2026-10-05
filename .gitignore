@@ -36,8 +36,7 @@ user_data/backtest_results/
 user_data/hyperopt_results/
 user_data/market_bias.json
 
-# IDE and OS files
-.vscode/
-.idea/
-.DS_Store
-*.swp
+# Backups and Deployment state
+backups/
+.cuanimus/
+deploy/secrets/

@@ -38,6 +38,23 @@ const API = {
     }
   },
 
+  // 0. Authentication
+  login(username, password) {
+    return this.request('/api/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({ username, password })
+    });
+  },
+  logout() {
+    return this.request('/api/auth/logout', {
+      method: 'POST',
+      body: JSON.stringify({})
+    });
+  },
+  getAuthMe() {
+    return this.request('/api/auth/me');
+  },
+
   // 1. System & Safety
   getSystemStatus() {
     return this.request('/api/system/status');

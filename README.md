@@ -1,6 +1,6 @@
 # CUANIMUS — Open-Source Algorithmic Crypto Trading Platform
 
-[![CI Tests](https://img.shields.io/badge/tests-126%20passed-brightgreen.svg)]()
+[![CI Tests](https://img.shields.io/badge/tests-138%20passed-brightgreen.svg)]()
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue.svg)]()
 [![License](https://img.shields.io/badge/license-MIT-green.svg)]()
 [![MCP](https://img.shields.io/badge/MCP-2024--11--05-purple.svg)]()
@@ -152,9 +152,43 @@ Key features:
 
 ---
 
+---
+
+## Production Server Deployment & Access
+
+CUANIMUS provides hardened deployment features for Linux servers:
+- **Zero Port Conflict:** Web UI defaults to `127.0.0.1:8888` (leaving Apache on port 80 and Freqtrade on port 8080 unaffected).
+- **Salted PBKDF2 Web Authentication:** 100k rounds HMAC-SHA256, session tokens, anti-brute force lockout, and RBAC (`ADMIN`, `OPERATOR`, `VIEWER`).
+- **Scoped MCP Bearer Tokens:** Per-agent tokens with sliding-window domain rate limiting (READ: 60/m, ANALYZE: 30/m, CONFIG: 15/m, EXECUTE: 5/m).
+- **Disaster Recovery:** Automated atomic backups with SHA256 integrity verification (`./cuanimus-cli backup create`).
+
+```bash
+# 1. Bootstrap admin credentials
+./cuanimus-cli ui bootstrap
+
+# 2. Start Web Control Center in daemon mode
+./cuanimus-cli ui start --daemon --port 8888
+
+# 3. Access securely via SSH Tunnel from workstation:
+# ssh -N -L 8888:127.0.0.1:8888 user@server-ip
+# Open http://localhost:8888/
+```
+
+---
+
 ## Extension Guides & Documentation
 
 - **[Buku Panduan Lengkap Penggunaan (Tutorial Bahasa Indonesia)](TUTORIAL.md)**
+- **[Production Deployment Quickstart](docs/10-deployment/GETTING_STARTED.md)**
+- **[Web Access & Security Architecture](docs/10-deployment/WEB_ACCESS.md)**
+- **[MCP Server Setup & Scoped Tokens](docs/10-deployment/MCP_SETUP.md)**
+- **[Google Antigravity Integration Guide](docs/10-deployment/ANTIGRAVITY_SETUP.md)**
+- **[OpenAI Codex Integration Guide](docs/10-deployment/CODEX_SETUP.md)**
+- **[Nous Hermes Integration Guide](docs/10-deployment/HERMES_SETUP.md)**
+- **[Autonomous Agent Trading Lifecycle](docs/10-deployment/AGENT_TRADING.md)**
+- **[Production Operations & Disaster Recovery](docs/10-deployment/OPERATIONS.md)**
+- **[Troubleshooting Guide](docs/10-deployment/TROUBLESHOOTING.md)**
+- **[Quality Gates Deployment Report (G1–G15)](docs/10-deployment/DEPLOYMENT_REPORT.md)**
 - [Phase 8 UI/UX Audit & Readiness Report](docs/09-uiux/PHASE_8_REPORT.md)
 - [Current UI Audit & Route Inventory](docs/09-uiux/CURRENT_UI_AUDIT.md)
 - [FreqUI Functional Benchmark & Parity Matrix](docs/09-uiux/FREQUI_PARITY.md)

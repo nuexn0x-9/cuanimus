@@ -169,6 +169,9 @@ class TestHttpServerDaemonIntegration(unittest.TestCase):
     def setUpClass(cls):
         cls.port = 8991
         cls.daemon = HttpServerDaemon(host="127.0.0.1", port=cls.port, base_dir=".")
+        boot = cls.daemon.auth_manager.bootstrap_admin(force=True)
+        login = cls.daemon.auth_manager.authenticate_user("admin", boot["temporary_password"])
+        cls.session_token = login["session_token"]
         cls.thread = threading.Thread(target=cls.daemon.start, kwargs={"blocking": True}, daemon=True)
         cls.thread.start()
         time.sleep(0.5)  # Allow socket to bind
@@ -180,7 +183,8 @@ class TestHttpServerDaemonIntegration(unittest.TestCase):
 
     def _get(self, path: str):
         url = f"http://127.0.0.1:{self.port}{path}"
-        req = urllib.request.Request(url)
+        headers = {"Authorization": f"Bearer {self.session_token}"}
+        req = urllib.request.Request(url, headers=headers)
         with urllib.request.urlopen(req, timeout=5.0) as resp:
             data = resp.read()
             return resp.status, resp.headers.get_content_type(), data
@@ -188,7 +192,11 @@ class TestHttpServerDaemonIntegration(unittest.TestCase):
     def _post(self, path: str, json_body: dict):
         url = f"http://127.0.0.1:{self.port}{path}"
         data_bytes = json.dumps(json_body).encode("utf-8")
-        req = urllib.request.Request(url, data=data_bytes, headers={"Content-Type": "application/json"}, method="POST")
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {self.session_token}",
+        }
+        req = urllib.request.Request(url, data=data_bytes, headers=headers, method="POST")
         with urllib.request.urlopen(req, timeout=5.0) as resp:
             data = resp.read()
             return resp.status, resp.headers.get_content_type(), data
