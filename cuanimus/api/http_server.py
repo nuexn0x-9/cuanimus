@@ -468,6 +468,11 @@ class HttpServerDaemon:
         self.auth_manager = AuthManager(base_dir=self.base_dir)
         self.token_manager = McpTokenManager(base_dir=self.base_dir)
         self.mcp_server = McpServer()
+        from cuanimus.api.telegram import TelegramBotListener
+        self.telegram_listener = TelegramBotListener(
+            notifier=self.api_service.telegram,
+            api_service=self.api_service,
+        )
         self._httpd: Optional[ThreadingHTTPServer] = None
         self.is_running = False
 
@@ -481,6 +486,9 @@ class HttpServerDaemon:
         self._httpd.web_static_dir = self.web_static_dir
         self.is_running = True
 
+        # Start interactive mobile Telegram bot listener
+        self.telegram_listener.start()
+
         logger.info(f"CUANIMUS Web Control Center running on http://{self.host}:{self.port}/")
         print("\n" + "=" * 70)
         print("          CUANIMUS PRODUCTION WEB CONTROL CENTER & MCP DAEMON")
@@ -490,6 +498,7 @@ class HttpServerDaemon:
         print(f" Health Check:   http://{self.host}:{self.port}/health")
         print(" Authentication: Salted PBKDF2 Session Security + Scoped MCP Tokens")
         print(" Environment:    PAPER / TESTNET SAFE (Real Capital Strictly Locked)")
+        print(" Telegram Bot:   Interactive Mobile Menu & Commands Active")
         print(" Emergency Stop: Global Human Kill-Switch Armed")
         print("=" * 70 + "\n")
 
@@ -502,6 +511,8 @@ class HttpServerDaemon:
                 self.stop()
 
     def stop(self):
+        if hasattr(self, "telegram_listener"):
+            self.telegram_listener.stop()
         if self._httpd:
             self._httpd.shutdown()
             self._httpd.server_close()
