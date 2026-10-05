@@ -295,12 +295,49 @@ Semua token sensitif (API key Binance, Telegram token, Gemini key) otomatis disa
 
 ---
 
-## 10. Perintah CLI Cheatsheet
+## 10. Web Control Center & Antarmuka Trading Interaktif (Phase 8)
+
+CUANIMUS menyediakan antarmuka web modern kelas workstation yang **100% tanpa build (zero-dependency)**:
+
+### Menjalankan Web Control Center
+```bash
+# 1. Cek status Web Control Center
+./cuanimus-cli ui status
+
+# 2. Jalankan HTTP server daemon (default: port 8080)
+./cuanimus-cli ui start --port 8080
+
+# 3. Buka browser Anda:
+# http://127.0.0.1:8080/
+```
+
+### Fitur Utama di Web Browser:
+1. **Operational Dashboard**: Pantau total equity, unrealized PnL, open positions, status AI agent, dan kesehatan seluruh subsistem (*RiskEngine, Strategy, Execution, Telegram, MCP*).
+2. **Trading Terminal & Canvas Chart**: Grafik Candlestick berbasis HTML5 Canvas dengan timeframe (5m, 15m, 1h, 4h), garis EMA20/50, indikator ATR, Order Block zone, serta visualisasi level Stop Loss dan Take Profit.
+3. **Causal Decision Trace**: Setiap trade dapat diinspeksi urutan kausalnya:
+   $$\text{Market Context} \longrightarrow \text{Regime} \longrightarrow \text{Strategy Signal} \longrightarrow \text{Agent Decision} \longrightarrow \text{Risk Approval} \longrightarrow \text{Execution FSM} \longrightarrow \text{Fill}$$
+4. **Risk Center**: Grafik visual batas risiko (*Daily Loss Meter*, *Drawdown Meter*, *Total Capital Exposure*, *Circuit Breakers*).
+5. **Research & Backtest Lab**: Form interaktif untuk menjalankan simulasi backtest seketika dan membandingkan performa model (*V0, V1, V2A, V2B, V2C*) pada partisi *Out-of-Sample*.
+6. **Integrasi Telegram & Notifikasi**:
+   - Status bot Telegram ditampilkan langsung di menu **Settings**.
+   - Dilengkapi tombol **"Send Test Alert"** untuk menguji koneksi bot secara langsung dari browser.
+   - Mengirimkan alert otomatis untuk *Order Fill*, *Stop Loss*, *Take Profit*, *Risk Veto*, dan *Emergency Stop*.
+7. **AI Configuration Copilot**:
+   - Ketik instruksi natural language (contoh: *"Setup conservative ETH paper trading with 0.5% risk"*).
+   - Sistem akan menyusun proposal konfigurasi, menampilkan visual diff perubahannya, dan menerapkan konfigurasi dengan 1 klik.
+8. **Emergency Kill Switch**: Tombol merah permanen di header untuk memicu kill-switch seketika yang menghentikan seluruh sesi agent dan mengunci Risk Engine.
+9. **Command Palette (`Ctrl+K` / `Cmd+K`)**: Navigasi cepat ala IDE profesional langsung dengan keyboard.
+
+---
+
+## 11. Perintah CLI Cheatsheet
 
 | Kategori | Perintah | Fungsi |
 | :--- | :--- | :--- |
 | **Sistem** | `./cuanimus-cli doctor` | Diagnosis kesehatan sistem dan environment |
 | | `./cuanimus-cli status` | Status platform dan safety lock aktif |
+| **Web UI** | `./cuanimus-cli ui start` | Menjalankan Web Control Center HTTP Daemon |
+| | `./cuanimus-cli ui status` | Status endpoint dan sesi Web Control Center |
 | **Config** | `./cuanimus-cli init --preset <name>` | Inisialisasi konfigurasi profil |
 | | `./cuanimus-cli config validate` | Validasi skema & keselamatan konfigurasi |
 | | `./cuanimus-cli config show` | Tampilkan konfigurasi aktif |
@@ -321,4 +358,4 @@ Semua token sensitif (API key Binance, Telegram token, Gemini key) otomatis disa
 
 ---
 
-*Selamat meriset dan membangun sistem kuantitatif dengan aman bersama CUANIMUS!*
+*Selamat meriset, memantau, dan membangun sistem kuantitatif dengan aman bersama CUANIMUS!*

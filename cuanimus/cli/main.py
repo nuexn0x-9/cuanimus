@@ -134,6 +134,15 @@ def build_parser() -> argparse.ArgumentParser:
     mcp_sub.add_parser("status", help="Show MCP server capabilities and safety status")
     mcp_sub.add_parser("tools", help="List all available MCP tools and required permissions")
 
+    # 11. ui
+    p_ui = subparsers.add_parser("ui", help="Web Control Center & Trading Interface commands")
+    ui_sub = p_ui.add_subparsers(dest="ui_action", help="UI actions")
+    p_us = ui_sub.add_parser("start", help="Start the Web Control Center HTTP Daemon")
+    p_us.add_argument("--host", default="127.0.0.1", help="HTTP server bind host (default: 127.0.0.1)")
+    p_us.add_argument("--port", type=int, default=8080, help="HTTP server listen port (default: 8080)")
+
+    ui_sub.add_parser("status", help="Display Web Control Center status and endpoints")
+
     return parser
 
 
@@ -442,6 +451,33 @@ def main(args: Optional[List[str]] = None) -> int:
             rows = [[t["name"], t["description"][:60] + "..." if len(t["description"]) > 60 else t["description"]] for t in tools]
             print(f"Available MCP Tools ({len(tools)} total):")
             print(format_table(headers, rows))
+            return 0
+
+    # COMMAND: ui
+    if cmd == "ui":
+        action = getattr(parsed_args, "ui_action", None)
+        from cuanimus.api.http_server import HttpServerDaemon
+        if not action or action == "start":
+            host = parsed_args.host
+            port = parsed_args.port
+            daemon = HttpServerDaemon(host=host, port=port)
+            daemon.start(blocking=True)
+            return 0
+        elif action == "status":
+            from cuanimus.api.control_plane import ControlPlaneAPI
+            api = ControlPlaneAPI()
+            status = api.get_system_status()
+            print("=" * 60)
+            print("         CUANIMUS WEB CONTROL CENTER STATUS")
+            print("=" * 60)
+            print(f"Environment:       {status['environment']}")
+            print(f"Safety Clearance:  {status['safety_status']}")
+            print(f"Emergency Stop:    {'LOCKED' if status['emergency_stop_active'] else 'ARMED / SAFE'}")
+            print(f"Active Strategy:   {status['strategy_id']}")
+            print(f"Risk Profile:      {status['risk_profile']}")
+            print(f"Exchange:          {status['exchange']}")
+            print(f"Active Sessions:   {status['active_session_count']}")
+            print("=" * 60)
             return 0
 
     return 0

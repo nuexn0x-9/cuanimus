@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CUANIMUS — Trading Control Center & Quantitative Terminal</title>
+  <link rel="stylesheet" href="/css/app.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
+</head>
+<body>
+  <div id="app-root">
+    <!-- Global Header -->
+    <header class="app-header">
+      <div class="header-left">
+        <div class="brand-badge">
+          <div class="brand-logo-icon">C</div>
+          <span>CUANIMUS</span>
+        </div>
+        <div id="header-env-badge" class="env-indicator env-paper">PAPER</div>
+        <div style="display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--text-muted);">
+          <span id="header-health-dot" class="health-dot ok"></span>
+          <span>SYSTEM HEALTHY</span>
+        </div>
+      </div>
+
+      <div class="header-center">
+        <div class="header-stat">
+          <span class="header-stat-label">Strategy</span>
+          <span class="header-stat-value" id="header-active-strategy">v2_pullback</span>
+        </div>
+        <div class="header-stat">
+          <span class="header-stat-label">Risk Profile</span>
+          <span class="header-stat-value" id="header-risk-profile">conservative</span>
+        </div>
+        <div class="header-stat">
+          <span class="header-stat-label">Safety Clearance</span>
+          <span class="header-stat-value bull">PAPER_SAFE</span>
+        </div>
+      </div>
+
+      <div class="header-right">
+        <button class="btn btn-sm" id="btn-header-copilot" title="Ask AI Copilot">🤖 Copilot</button>
+        <button class="btn btn-sm" id="btn-header-doctor" title="System Doctor Diagnostics">🩺 Doctor</button>
+        <button class="btn btn-sm" onclick="CommandPalette.open()" title="Command Palette (Ctrl+K)">⌘K</button>
+        <button class="btn-emergency-stop" id="btn-header-emergency" title="Trigger Global Human Kill-Switch">
+          <span>🚨</span> EMERGENCY STOP
+        </button>
+      </div>
+    </header>
+
+    <!-- App Body: Navigation Sidebar + View Workspace -->
+    <div class="app-body">
+      <!-- Navigation Sidebar -->
+      <nav class="app-nav">
+        <div class="nav-section-title">SURVEILLANCE</div>
+        <div class="nav-item active" data-view="overview">
+          <span class="nav-icon">📊</span>
+          <span>Overview</span>
+        </div>
+        <div class="nav-item" data-view="trading">
+          <span class="nav-icon">⚡</span>
+          <span>Trading Terminal</span>
+        </div>
+        <div class="nav-item" data-view="markets">
+          <span class="nav-icon">🌐</span>
+          <span>Markets & Regimes</span>
+        </div>
+
+        <div class="nav-section-title">QUANT & RISK</div>
+        <div class="nav-item" data-view="strategies">
+          <span class="nav-icon">🧠</span>
+          <span>Strategies</span>
+        </div>
+        <div class="nav-item" data-view="research">
+          <span class="nav-icon">🧪</span>
+          <span>Research Lab</span>
+        </div>
+        <div class="nav-item" data-view="risk">
+          <span class="nav-icon">🛡️</span>
+          <span>Risk Center</span>
+        </div>
+
+        <div class="nav-section-title">AUTOMATION</div>
+        <div class="nav-item" data-view="agents">
+          <span class="nav-icon">🤖</span>
+          <span>AI Agents</span>
+        </div>
+        <div class="nav-item" data-view="config">
+          <span class="nav-icon">⚙️</span>
+          <span>Configuration</span>
+        </div>
+
+        <div class="nav-section-title">PLATFORM</div>
+        <div class="nav-item" data-view="data">
+          <span class="nav-icon">💾</span>
+          <span>Data Center</span>
+        </div>
+        <div class="nav-item" data-view="logs">
+          <span class="nav-icon">📜</span>
+          <span>Logs & Events</span>
+        </div>
+        <div class="nav-item" data-view="settings">
+          <span class="nav-icon">📱</span>
+          <span>Settings & Telegram</span>
+        </div>
+      </nav>
+
+      <!-- Main Content Workspace -->
+      <main class="app-main">
+        <section id="view-overview" class="view-container active"></section>
+        <section id="view-trading" class="view-container"></section>
+        <section id="view-markets" class="view-container"></section>
+        <section id="view-strategies" class="view-container"></section>
+        <section id="view-research" class="view-container"></section>
+        <section id="view-risk" class="view-container"></section>
+        <section id="view-agents" class="view-container"></section>
+        <section id="view-config" class="view-container"></section>
+        <section id="view-data" class="view-container"></section>
+        <section id="view-logs" class="view-container"></section>
+        <section id="view-settings" class="view-container"></section>
+      </main>
+    </div>
+  </div>
+
+  <!-- Toast Notification Container -->
+  <div id="toast-container"></div>
+
+  <!-- Application Scripts -->
+  <script src="/js/api.js"></script>
+  <script src="/js/chart.js"></script>
+  <script src="/js/components.js"></script>
+  <script src="/js/app.js"></script>
+</body>
+</html>

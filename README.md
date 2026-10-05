@@ -1,6 +1,6 @@
 # CUANIMUS — Open-Source Algorithmic Crypto Trading Platform
 
-[![CI Tests](https://img.shields.io/badge/tests-111%20passed-brightgreen.svg)]()
+[![CI Tests](https://img.shields.io/badge/tests-126%20passed-brightgreen.svg)]()
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue.svg)]()
 [![License](https://img.shields.io/badge/license-MIT-green.svg)]()
 [![MCP](https://img.shields.io/badge/MCP-2024--11--05-purple.svg)]()
@@ -121,12 +121,44 @@ $$\text{Defaults} \longrightarrow \text{Profile} \longrightarrow \text{Subsystem
 | `./cuanimus-cli mcp start` | Starts the CUANIMUS Model Context Protocol JSON-RPC 2.0 Server. |
 | `./cuanimus-cli mcp status` | Displays MCP server status, tool count, and active safety modes. |
 | `./cuanimus-cli mcp tools` | Lists all 46 registered MCP tools across 8 functional domains. |
+| `./cuanimus-cli ui start` | Starts the CUANIMUS Web Control Center & Trading Interface HTTP daemon. |
+| `./cuanimus-cli ui status` | Displays Web Control Center status, active sessions, and endpoints. |
+
+---
+
+## Web Control Center & Trading Interface (Phase 8)
+
+CUANIMUS includes a professional, zero-build web-based trading control center:
+
+```bash
+# 1. Inspect Web Control Center status
+./cuanimus-cli ui status
+
+# 2. Start the Web Control Center HTTP Daemon (default: http://127.0.0.1:8080)
+./cuanimus-cli ui start --port 8080
+
+# 3. Open browser:
+# http://127.0.0.1:8080/
+```
+
+Key features:
+- **Zero-Dependency Architecture:** Pure modern HTML5/CSS3/ES Modules. No Node.js or npm required.
+- **Hardware-Accelerated Canvas Charting:** Candlesticks, EMA overlays, ATR bands, Order Blocks, and SL/TP targets.
+- **Dedicated Risk Center:** Live visual progress meters for Daily Loss limit, Drawdown cap, and Capital Exposure.
+- **Deterministic Decision Traces:** Visual causal chain (*Market -> Regime -> Strategy -> Agent -> Risk -> Execution FSM -> Fill*).
+- **AI Configuration Copilot:** Natural language prompt input with typed JSON Schema diff preview before applying.
+- **Telegram Alert Integration:** Zero-dependency alert dispatching with connection status and test ping button.
+- **Global Emergency Kill Switch:** Persistent header-level emergency stop halting active sessions and locking RiskEngine.
 
 ---
 
 ## Extension Guides & Documentation
 
 - **[Buku Panduan Lengkap Penggunaan (Tutorial Bahasa Indonesia)](TUTORIAL.md)**
+- [Phase 8 UI/UX Audit & Readiness Report](docs/09-uiux/PHASE_8_REPORT.md)
+- [Current UI Audit & Route Inventory](docs/09-uiux/CURRENT_UI_AUDIT.md)
+- [FreqUI Functional Benchmark & Parity Matrix](docs/09-uiux/FREQUI_PARITY.md)
+- [Current to Target UI/UX Gap Analysis](docs/09-uiux/UIUX_GAP_ANALYSIS.md)
 - [Agent Architecture & Gateway Decoupling](docs/08-agent/AGENT_ARCHITECTURE.md)
 - [Model Context Protocol (MCP) Architecture](docs/08-agent/MCP_ARCHITECTURE.md)
 - [MCP Tool Catalogue (46 Tools)](docs/08-agent/MCP_TOOLS.md)
