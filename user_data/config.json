@@ -10,8 +10,8 @@
     "db_url": "sqlite:////freqtrade/user_data/tradesv3.dryrun.sqlite",
     "exchange": {
         "name": "binance",
-        "key": "",
-        "secret": "",
+        "key": "${BINANCE_API_KEY}",
+        "secret": "${BINANCE_API_SECRET}",
         "ccxt_config": {
             "options": {
                 "defaultType": "future"
@@ -59,7 +59,19 @@
         "listen_ip_address": "0.0.0.0",
         "listen_port": 8080,
         "username": "admin_gemini",
-        "password": ""
+        "password": "${API_SERVER_PASSWORD}",
+        "jwt_secret_key": "${JWT_SECRET_KEY}"
+    },
+    "telegram": {
+        "enabled": true,
+        "token": "${TELEGRAM_BOT_TOKEN}",
+        "chat_id": "${TELEGRAM_CHAT_ID}",
+        "notification_settings": {
+            "status": "on",
+            "entry": "on",
+            "exit": "on",
+            "warning": "on"
+        }
     },
     "bot_name": "Gemini_Pro_Futures_Bot",
     "initial_state": "running"

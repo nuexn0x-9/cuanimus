@@ -433,6 +433,9 @@ class HttpServerDaemon:
     """Manages the lifecycle of the CUANIMUS Web Control Center HTTP Server."""
 
     def __init__(self, host: str = "127.0.0.1", port: int = 8888, base_dir: str = "."):
+        from cuanimus.config.env import load_env_file
+        load_env_file()
+
         self.host = host
         self.port = port
         self.base_dir = os.path.abspath(base_dir)

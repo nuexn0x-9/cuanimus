@@ -264,6 +264,9 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main(args: Optional[List[str]] = None) -> int:
+    from cuanimus.config.env import load_env_file
+    load_env_file()
+
     parser = build_parser()
     parsed_args = parser.parse_args(args)
 

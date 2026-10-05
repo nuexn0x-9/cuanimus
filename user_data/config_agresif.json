@@ -61,8 +61,8 @@
     "name": "binance",
     "sandbox": false,
 
-    "key": "",
-    "secret": "",
+    "key": "${BINANCE_API_KEY}",
+    "secret": "${BINANCE_API_SECRET}",
 
     "pair_whitelist": ["XRP/USDT:USDT", "ETH/USDT:USDT", "ADA/USDT:USDT"],
 
@@ -88,14 +88,14 @@
     "listen_ip_address": "0.0.0.0",
     "listen_port": 8080,
     "username": "admin_gemini",
-    "password": "",
-    "jwt_secret_key": ""
+    "password": "${API_SERVER_PASSWORD}",
+    "jwt_secret_key": "${JWT_SECRET_KEY}"
   },
 
   "telegram": {
-    "enabled": false,
-    "token": "",
-    "chat_id": "",
+    "enabled": true,
+    "token": "${TELEGRAM_BOT_TOKEN}",
+    "chat_id": "${TELEGRAM_CHAT_ID}",
 
     "notification_settings": {
       "status": "on",

@@ -18,6 +18,8 @@ import urllib.error
 from datetime import datetime, timezone
 from typing import Dict, Any, Optional
 
+from cuanimus.config.env import load_env_file
+
 logger = logging.getLogger(__name__)
 
 
@@ -30,9 +32,31 @@ class TelegramNotifier:
         chat_id: Optional[str] = None,
         enabled: Optional[bool] = None,
     ):
-        # Resolve credentials from arguments, environment variables, or defaults
+        # 1. Ensure .env is loaded
+        load_env_file()
+
+        # 2. Resolve credentials from arguments, environment variables, or fallback config
         self.bot_token = bot_token or os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
         self.chat_id = chat_id or os.environ.get("TELEGRAM_CHAT_ID", "").strip()
+
+        # 3. Check fallback in user_data/config.json if not found in environment
+        if not self.bot_token or not self.chat_id:
+            cfg_path = os.path.join(os.path.abspath("."), "user_data", "config.json")
+            if os.path.exists(cfg_path):
+                try:
+                    with open(cfg_path, "r", encoding="utf-8") as f:
+                        c_data = json.load(f)
+                    tg = c_data.get("telegram", {})
+                    token_candidate = tg.get("token", "").strip()
+                    chat_candidate = str(tg.get("chat_id", "")).strip()
+                    if not self.bot_token and token_candidate and not token_candidate.startswith("${"):
+                        self.bot_token = token_candidate
+                    if not self.chat_id and chat_candidate and not chat_candidate.startswith("${"):
+                        self.chat_id = chat_candidate
+                    if enabled is None and tg.get("enabled"):
+                        self.enabled = bool(tg.get("enabled"))
+                except Exception:
+                    pass
 
         env_enabled = os.environ.get("TELEGRAM_ENABLED", "").lower() in ("true", "1", "yes")
         if enabled is not None:
