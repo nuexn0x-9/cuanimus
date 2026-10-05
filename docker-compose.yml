@@ -1,7 +1,104 @@
 services:
+  # ============================================================================
+  # 1. CUANIMUS Web Control Center & REST API (Includes integrated MCP at /mcp)
+  # ============================================================================
+  cuanimus:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: cuanimus:latest
+    container_name: cuanimus_app
+    ports:
+      - "${CUANIMUS_PORT:-8888}:8888"
+    volumes:
+      - ./user_data:/app/user_data
+      - ./data:/app/data
+      - ./config:/app/config
+      - ./.cuanimus:/app/.cuanimus
+      - ./logs:/app/logs
+      - ./experiments:/app/experiments
+    environment:
+      - PYTHONUNBUFFERED=1
+      - TZ=Asia/Jakarta
+      - CUANIMUS_ENV=paper
+      - DB_HOST=cuanimus-db
+      - DB_PORT=5432
+      - DB_NAME=cuanimus
+      - DB_USER=cuanimus
+      - DB_PASSWORD=${POSTGRES_PASSWORD:-cuanimus_secret_pass}
+    restart: unless-stopped
+    depends_on:
+      cuanimus-db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8888/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+
+  # ============================================================================
+  # 2. CUANIMUS Dedicated Standalone MCP Server (JSON-RPC 2.0 on HTTP)
+  # ============================================================================
+  cuanimus-mcp:
+    image: cuanimus:latest
+    container_name: cuanimus_mcp
+    command: >
+      python3 -m cuanimus.cli mcp start --transport http --host 0.0.0.0 --port 8889
+    ports:
+      - "${MCP_PORT:-8889}:8889"
+    volumes:
+      - ./user_data:/app/user_data
+      - ./data:/app/data
+      - ./config:/app/config
+      - ./.cuanimus:/app/.cuanimus
+      - ./logs:/app/logs
+      - ./experiments:/app/experiments
+    environment:
+      - PYTHONUNBUFFERED=1
+      - TZ=Asia/Jakarta
+    restart: unless-stopped
+    depends_on:
+      - cuanimus
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8889/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+
+  # ============================================================================
+  # 3. CUANIMUS Relational Database (PostgreSQL 16)
+  # ============================================================================
+  cuanimus-db:
+    image: postgres:16-alpine
+    container_name: cuanimus_db
+    environment:
+      - POSTGRES_DB=cuanimus
+      - POSTGRES_USER=cuanimus
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-cuanimus_secret_pass}
+      - PGDATA=/var/lib/postgresql/data/pgdata
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - cuanimus_pgdata:/var/lib/postgresql/data
+      - ./scripts/init_db.sql:/docker-entrypoint-initdb.d/01_init.sql:ro
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cuanimus -d cuanimus"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+
+  # ============================================================================
+  # 4. Optional Legacy Freqtrade Container (Disabled by default via profile)
+  # ============================================================================
   freqtrade_gemini:
     image: freqtradeorg/freqtrade:stable
     container_name: freqtrade_gemini_futures
+    profiles:
+      - freqtrade
     volumes:
       - "./user_data:/freqtrade/user_data"
     network_mode: "host"
@@ -14,3 +111,7 @@ services:
       trade
       --config /freqtrade/user_data/config_agresif.json
       --strategy SNIPER_TRADE
+
+volumes:
+  cuanimus_pgdata:
+    name: cuanimus_pgdata

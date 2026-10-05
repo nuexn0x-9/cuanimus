@@ -176,8 +176,36 @@ CUANIMUS provides hardened deployment features for Linux servers:
 
 ---
 
+## Docker Containerized Deployment
+
+CUANIMUS, its Database, and dedicated MCP Server can be launched effortlessly via Docker:
+
+```bash
+# Quick start using the lifecycle helper:
+./deploy/docker.sh start
+
+# Or using standard Docker Compose:
+docker compose up -d --build
+
+# Check running container health:
+./deploy/docker.sh status
+
+# Run system doctor inside the container:
+./deploy/docker.sh doctor
+```
+
+Services provisioned:
+- **`cuanimus`** (`:8888`): Web Control Center UI, REST Control Plane API, and integrated `/mcp` endpoint.
+- **`cuanimus-mcp`** (`:8889`): Dedicated standalone MCP JSON-RPC 2.0 server.
+- **`cuanimus-db`** (`:5432`): PostgreSQL 16 relational database with pre-configured quantitative schemas.
+
+See **[Docker Setup & Operations Guide](docs/10-deployment/DOCKER_SETUP.md)** for details.
+
+---
+
 ## Extension Guides & Documentation
 
+- **[Docker Deployment Guide](docs/10-deployment/DOCKER_SETUP.md)**
 - **[Buku Panduan Lengkap Penggunaan (Tutorial Bahasa Indonesia)](TUTORIAL.md)**
 - **[Production Deployment Quickstart](docs/10-deployment/GETTING_STARTED.md)**
 - **[Web Access & Security Architecture](docs/10-deployment/WEB_ACCESS.md)**

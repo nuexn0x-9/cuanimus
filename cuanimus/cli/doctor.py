@@ -58,6 +58,8 @@ class CuanimusDoctor:
         return {"category": "Runtime", "check": "Python Version (>= 3.10)", "status": "FAIL", "details": f"Python 3.10+ required, got {details}"}
 
     def _check_docker(self) -> Dict[str, str]:
+        if os.path.exists("/.dockerenv") or os.environ.get("CUANIMUS_CONTAINERIZED") == "1":
+            return {"category": "Infrastructure", "check": "Docker Subsystem", "status": "PASS", "details": "Containerized environment (Docker execution active)"}
         try:
             res = subprocess.run(["docker", "ps", "--format", "{{.Names}}"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=2, text=True)
             if res.returncode == 0:

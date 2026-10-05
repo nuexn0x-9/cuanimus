@@ -1,0 +1,15 @@
+.git
+.github
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache
+venv/
+.venv/
+env/
+*.log
+logs/*
+!logs/.gitkeep
+backups/*.zip
+.DS_Store
