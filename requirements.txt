@@ -16,3 +16,13 @@ python-dateutil>=2.8.2
 # Optional: Exchange Connectivity & Testing
 ccxt>=4.0.0
 pytest>=7.0.0
+
+# ------------------------------------------------------------------------------
+# CATATAN TERKAIT FREQTRADE:
+# CUANIMUS Core (CLI, Risk Engine, Causal Backtester, MCP Agent Gateway) bersifat
+# STANDALONE (mandiri) dan TIDAK membutuhkan instalasi 'freqtrade' di lingkungan pip lokal.
+#
+# Jika Anda ingin menjalankan container eksekutor legacy Freqtrade:
+# Gunakan Docker resmi (docker-compose up -d) karena sudah memuat image lengkap
+# beserta binary C / TA-Lib tanpa perlu meng-compile pip freqtrade di host OS Anda.
+# ------------------------------------------------------------------------------

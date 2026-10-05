@@ -38,7 +38,12 @@ Selamat datang di **CUANIMUS**! Dokumen ini adalah panduan praktis langkah-demi-
 - **Sistem Operasi**: Linux (Ubuntu 20.04+, Debian, Arch), macOS, atau Windows (WSL2 direkomendasikan).
 - **Python**: Versi `3.10` atau lebih baru (`python3 --version`).
 - **Git**: Untuk cloning dan pembaruan repositori.
-- **Docker** *(Opsional)*: Jika Anda ingin menjalankan container terisolasi.
+- **Docker** *(Opsional)*: Jika Anda ingin menjalankan container terisolasi atau bot dry-run Freqtrade bawaan.
+
+> [!NOTE]
+> **Apakah Perlu Install Freqtrade via pip?**
+> **TIDAK PERLU.** CUANIMUS Core dirancang murni mandiri (*standalone*). Seluruh CLI (`./cuanimus-cli`), Risk Engine, Causal Backtester, dan MCP AI Server berjalan langsung dari `requirements.txt`.
+> Jika Anda ingin menjalankan container Freqtrade lawas, cukup jalankan `docker-compose up -d` (Docker otomatis mendownload image yang sudah lengkap dengan binary C TA-Lib tanpa perlu meng-compile pip freqtrade di laptop/server Anda).
 
 ---
 
