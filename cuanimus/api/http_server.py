@@ -286,6 +286,8 @@ class CuanimusHttpHandler(BaseHTTPRequestHandler):
                 self._send_json(200, {"events": self.api.get_system_events()})
             elif path == "/api/telegram/status":
                 self._send_json(200, self.api.get_telegram_status())
+            elif path in ("/api/database/status", "/api/system/database"):
+                self._send_json(200, self.api.get_database_status())
             elif path == "/api/settings":
                 self._send_json(200, self.api.get_settings())
             elif path == "/api/events/stream":
@@ -368,6 +370,12 @@ class CuanimusHttpHandler(BaseHTTPRequestHandler):
                 self._send_json(200, self.api.send_telegram_test())
             elif path == "/api/settings":
                 self._send_json(200, self.api.update_settings(body))
+            elif path == "/api/database/switch":
+                target = body.get("target", "sqlite")
+                url = body.get("url")
+                self._send_json(200, self.api.switch_database_backend(target, url))
+            elif path == "/api/database/migrate":
+                self._send_json(200, self.api.migrate_database())
             else:
                 self._send_json(404, {"error": "API route not found", "path": path})
         except Exception as e:

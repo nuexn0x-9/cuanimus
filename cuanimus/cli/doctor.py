@@ -70,18 +70,28 @@ class CuanimusDoctor:
             return {"category": "Infrastructure", "check": "Docker Subsystem", "status": "WARN", "details": "Docker CLI not detected or inaccessible"}
 
     def _check_database(self) -> Dict[str, str]:
-        db_path = os.path.join(self.base_dir, "user_data", "cuanimus.sqlite")
+        from cuanimus.core.database import DatabaseManager
+        db_mgr = DatabaseManager.get_instance(self.base_dir)
         try:
-            os.makedirs(os.path.dirname(db_path), exist_ok=True)
-            conn = sqlite3.connect(db_path)
-            cur = conn.cursor()
-            cur.execute("CREATE TABLE IF NOT EXISTS _doctor_probe (id INTEGER PRIMARY KEY, ts TEXT);")
-            cur.execute("INSERT INTO _doctor_probe (ts) VALUES (?);", (datetime.utcnow().isoformat(),))
-            conn.commit()
-            conn.close()
-            return {"category": "Storage", "check": "Database Connectivity", "status": "PASS", "details": f"SQLite write probe successful at {db_path}"}
+            status = db_mgr.get_status()
+            if status["connected"]:
+                label = "SQLite (Default)" if db_mgr.is_sqlite else "PostgreSQL"
+                trades_cnt = status["tables"].get("trades", 0)
+                orders_cnt = status["tables"].get("orders", 0)
+                return {
+                    "category": "Storage",
+                    "check": "Database Connectivity",
+                    "status": "PASS",
+                    "details": f"{label} connected ({status['source']}) — {trades_cnt:,} trades, {orders_cnt:,} orders"
+                }
+            return {
+                "category": "Storage",
+                "check": "Database Connectivity",
+                "status": "FAIL",
+                "details": f"Database disconnected: {status.get('error', 'Unknown error')}"
+            }
         except Exception as e:
-            return {"category": "Storage", "check": "Database Connectivity", "status": "FAIL", "details": f"Database write error: {str(e)}"}
+            return {"category": "Storage", "check": "Database Connectivity", "status": "FAIL", "details": f"Database check error: {str(e)}"}
 
     def _check_filesystem(self) -> Dict[str, str]:
         required_dirs = ["config", "data", "docs", "user_data", "experiments"]

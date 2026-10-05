@@ -11,6 +11,8 @@ services:
     ports:
       - "${CUANIMUS_PORT:-8888}:8888"
     volumes:
+      - ./cuanimus:/app/cuanimus
+      - ./scripts:/app/scripts
       - ./user_data:/app/user_data
       - ./data:/app/data
       - ./config:/app/config
@@ -48,6 +50,8 @@ services:
     ports:
       - "${MCP_PORT:-8889}:8889"
     volumes:
+      - ./cuanimus:/app/cuanimus
+      - ./scripts:/app/scripts
       - ./user_data:/app/user_data
       - ./data:/app/data
       - ./config:/app/config

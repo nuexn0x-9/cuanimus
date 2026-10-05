@@ -17,6 +17,9 @@ python-dateutil>=2.8.2
 ccxt>=4.0.0
 pytest>=7.0.0
 
+# Optional: PostgreSQL Database Driver
+psycopg2-binary>=2.9.0
+
 # ------------------------------------------------------------------------------
 # CATATAN TERKAIT FREQTRADE:
 # CUANIMUS Core (CLI, Risk Engine, Causal Backtester, MCP Agent Gateway) bersifat

@@ -260,6 +260,15 @@ def build_parser() -> argparse.ArgumentParser:
     p_bv.add_argument("--id", default=None, help="Snapshot ID to verify (defaults to latest)")
     bk_sub.add_parser("list", help="List all available backup snapshots")
 
+    # 13. db
+    p_db = subparsers.add_parser("db", help="Database subsystem inspection, switching, and migration")
+    db_sub = p_db.add_subparsers(dest="db_action", help="Database actions")
+    db_sub.add_parser("status", help="Display active database backend, connectivity, and table statistics")
+    p_dbs = db_sub.add_parser("switch", help="Switch database backend between SQLite and PostgreSQL")
+    p_dbs.add_argument("backend", choices=["sqlite", "postgres", "postgresql"], help="Target database backend")
+    p_dbs.add_argument("--url", default=None, help="Optional custom database connection URL")
+    db_sub.add_parser("migrate", help="Migrate existing SQLite trading data into PostgreSQL")
+
     return parser
 
 
@@ -792,6 +801,47 @@ def main(args: Optional[List[str]] = None) -> int:
             print("Available CUANIMUS Backups:")
             print(format_table(headers, rows))
             return 0
+
+    # COMMAND: db
+    if cmd == "db":
+        action = getattr(parsed_args, "db_action", None)
+        from cuanimus.core.database import DatabaseManager
+        db_mgr = DatabaseManager()
+        if not action or action == "status":
+            st = db_mgr.get_status()
+            print("=" * 65)
+            print("             CUANIMUS DATABASE SUBSYSTEM STATUS")
+            print("=" * 65)
+            print(f"Active Backend:   {st['backend'].upper()} {'(Default)' if st['is_default'] else ''}")
+            print(f"Connection:       {'CONNECTED [OK]' if st['connected'] else 'DISCONNECTED [FAIL]'}")
+            print(f"Active Source:    {st['source']}")
+            if st.get('error'):
+                print(f"Error:            {st['error']}")
+            print("-" * 65)
+            print("Table Row Counts:")
+            for tbl, cnt in st.get("tables", {}).items():
+                print(f"  • {tbl:<16}: {cnt:,} records")
+            print("=" * 65)
+            return 0 if st['connected'] else 1
+
+        elif action == "switch":
+            target = parsed_args.backend
+            url = getattr(parsed_args, "url", None)
+            res = db_mgr.switch_backend(target, url)
+            print(f"[OK] {res['message']}")
+            print(f"Config updated: {res['config_file']}")
+            print(f"Active URL:     {res['db_url']}")
+            return 0
+
+        elif action == "migrate":
+            print("--> Migrating SQLite records to PostgreSQL...")
+            try:
+                res = db_mgr.migrate_sqlite_to_postgres()
+                print(f"[OK] {res['message']}")
+                return 0
+            except Exception as e:
+                print(f"[ERROR] Migration failed: {e}")
+                return 1
 
     return 0
 

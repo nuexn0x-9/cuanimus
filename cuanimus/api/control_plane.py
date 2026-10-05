@@ -53,6 +53,8 @@ class ControlPlaneAPI:
         self.paper_guard = PaperExecutionSafetyGuard(dry_run=True)
         self.audit_logger = AgentAuditLogger(log_path=os.path.join(self.base_dir, "logs", "agent_audit.jsonl"))
         self.telegram = TelegramNotifier()
+        from cuanimus.core.database import DatabaseManager
+        self.db = DatabaseManager.get_instance(base_dir=self.base_dir)
 
         # In-memory settings store
         self._user_settings = {
@@ -186,149 +188,122 @@ class ControlPlaneAPI:
 
     def get_positions(self) -> List[Dict[str, Any]]:
         """Returns open trading positions with PnL, ROE, mark price, and dynamic ATR stops."""
-        db_path = os.path.join(self.base_dir, "user_data", "tradesv3.dryrun.sqlite")
         positions = []
-
-        if os.path.exists(db_path):
-            try:
-                conn = sqlite3.connect(db_path)
-                conn.row_factory = sqlite3.Row
-                c = conn.cursor()
-                rows = c.execute("SELECT * FROM trades WHERE is_open = 1 ORDER BY id DESC").fetchall()
-                for r in rows:
-                    entry = float(r["open_rate"] or 0.0)
-                    cur = float(r["close_rate"] or entry)
-                    pnl_pct = float(r["close_profit"] or 0.0) * 100.0
-                    pnl_usd = (cur - entry) * float(r["amount"] or 1.0)
-                    positions.append({
-                        "id": r["id"],
-                        "symbol": r["pair"],
-                        "side": "LONG",
-                        "size": float(r["amount"] or 0.0),
-                        "entry_price": entry,
-                        "mark_price": cur,
-                        "unrealized_pnl_usd": round(pnl_usd, 2),
-                        "unrealized_pnl_pct": round(pnl_pct, 2),
-                        "roe_pct": round(pnl_pct * 3.0, 2),
-                        "leverage": 3.0,
-                        "margin_usd": round(entry * float(r["amount"] or 0.0) / 3.0, 2),
-                        "stop_loss": round(entry * 0.985, 4),
-                        "take_profit": round(entry * 1.035, 4),
-                        "risk_status": "PROTECTED",
-                        "strategy": "v2_pullback",
-                        "agent_session": "sess_paper_auto",
-                        "duration": "Active",
-                        "decision_trace_id": f"TRACE_TRD_{r['id']}",
-                    })
-                conn.close()
-            except Exception as e:
-                logger.warning(f"Could not load open trades from sqlite: {e}")
+        try:
+            rows = self.db.query("SELECT * FROM trades WHERE is_open = 1 ORDER BY id DESC")
+            for r in rows:
+                entry = float(r["open_rate"] or 0.0)
+                cur = float(r["close_rate"] or entry)
+                pnl_pct = float(r["close_profit"] or 0.0) * 100.0
+                pnl_usd = (cur - entry) * float(r["amount"] or 1.0)
+                positions.append({
+                    "id": r["id"],
+                    "symbol": r["pair"],
+                    "side": "LONG",
+                    "size": float(r["amount"] or 0.0),
+                    "entry_price": entry,
+                    "mark_price": cur,
+                    "unrealized_pnl_usd": round(pnl_usd, 2),
+                    "unrealized_pnl_pct": round(pnl_pct, 2),
+                    "roe_pct": round(pnl_pct * 3.0, 2),
+                    "leverage": 3.0,
+                    "margin_usd": round(entry * float(r["amount"] or 0.0) / 3.0, 2),
+                    "stop_loss": round(entry * 0.985, 4),
+                    "take_profit": round(entry * 1.035, 4),
+                    "risk_status": "PROTECTED",
+                    "strategy": "v2_pullback",
+                    "agent_session": "sess_paper_auto",
+                    "duration": "Active",
+                    "decision_trace_id": f"TRACE_TRD_{r['id']}",
+                })
+        except Exception as e:
+            logger.warning(f"Could not load open trades from database: {e}")
 
         return positions
 
     def get_orders(self) -> List[Dict[str, Any]]:
-        """Returns active and recent orders with full FSM state tracking from SQLite and active sessions."""
-        db_path = os.path.join(self.base_dir, "user_data", "tradesv3.dryrun.sqlite")
+        """Returns active and recent orders with full FSM state tracking from database and active sessions."""
         orders = []
-
-        if os.path.exists(db_path):
-            try:
-                conn = sqlite3.connect(db_path)
-                conn.row_factory = sqlite3.Row
-                c = conn.cursor()
-                rows = c.execute("SELECT * FROM orders ORDER BY id DESC LIMIT 50").fetchall()
-                for r in rows:
-                    oid = r["order_id"] or f"ORD_{r['id']}"
-                    symbol = r["symbol"] or r["ft_pair"] or "ETH/USDT:USDT"
-                    side = (r["side"] or r["ft_order_side"] or "BUY").upper()
-                    otype = (r["order_type"] or "LIMIT").upper()
-                    price = float(r["price"] or r["ft_price"] or 0.0)
-                    amount = float(r["amount"] or r["ft_amount"] or 0.0)
-                    filled = float(r["filled"] or 0.0)
-                    is_open = bool(r["ft_is_open"])
-                    status = (r["status"] or ("SUBMITTED" if is_open else "FILLED")).upper()
-                    created_at = str(r["order_date"] or "")[:19]
-                    orders.append({
-                        "order_id": f"ORD_{r['id']}",
-                        "client_order_id": oid,
-                        "symbol": symbol,
-                        "side": side,
-                        "type": otype,
-                        "price": price,
-                        "amount": amount,
-                        "filled": filled,
-                        "status": status,
-                        "created_at": created_at,
-                        "strategy": "v2_pullback",
-                        "agent_id": "antigravity-agent",
-                    })
-                conn.close()
-            except Exception as e:
-                logger.warning(f"Could not load orders from sqlite: {e}")
+        try:
+            rows = self.db.query("SELECT * FROM orders ORDER BY id DESC LIMIT 50")
+            for r in rows:
+                oid = r.get("order_id") or f"ORD_{r['id']}"
+                symbol = r.get("symbol") or r.get("ft_pair") or "ETH/USDT:USDT"
+                side = (r.get("side") or r.get("ft_order_side") or "BUY").upper()
+                otype = (r.get("order_type") or "LIMIT").upper()
+                price = float(r.get("price") or r.get("ft_price") or 0.0)
+                amount = float(r.get("amount") or r.get("ft_amount") or 0.0)
+                filled = float(r.get("filled") or 0.0)
+                is_open = bool(r.get("ft_is_open"))
+                status = (r.get("status") or ("SUBMITTED" if is_open else "FILLED")).upper()
+                created_at = str(r.get("order_date") or "")[:19]
+                orders.append({
+                    "order_id": f"ORD_{r['id']}",
+                    "client_order_id": oid,
+                    "symbol": symbol,
+                    "side": side,
+                    "type": otype,
+                    "price": price,
+                    "amount": amount,
+                    "filled": filled,
+                    "status": status,
+                    "created_at": created_at,
+                    "strategy": "v2_pullback",
+                    "agent_id": "antigravity-agent",
+                })
+        except Exception as e:
+            logger.warning(f"Could not load orders from database: {e}")
 
         return orders
 
     def get_trades(self, limit: int = 50) -> List[Dict[str, Any]]:
         """Returns completed trades with PnL, duration, and execution metadata."""
-        db_path = os.path.join(self.base_dir, "user_data", "tradesv3.dryrun.sqlite")
         trades = []
-        if os.path.exists(db_path):
-            try:
-                conn = sqlite3.connect(db_path)
-                conn.row_factory = sqlite3.Row
-                c = conn.cursor()
-                rows = c.execute(
-                    "SELECT * FROM trades WHERE is_open = 0 ORDER BY id DESC LIMIT ?", (limit,)
-                ).fetchall()
-                for r in rows:
-                    entry = float(r["open_rate"] or 0.0)
-                    close = float(r["close_rate"] or entry)
-                    pnl_pct = float(r["close_profit"] or 0.0) * 100.0
-                    pnl_usd = float(r["close_profit_abs"] or (close - entry) * float(r["amount"] or 1.0))
-                    trades.append({
-                        "trade_id": f"TRD_{r['id']}",
-                        "symbol": r["pair"],
-                        "side": "LONG",
-                        "amount": float(r["amount"] or 0.0),
-                        "entry_price": entry,
-                        "exit_price": close,
-                        "pnl_usd": round(pnl_usd, 2),
-                        "pnl_pct": round(pnl_pct, 2),
-                        "open_time": str(r["open_date"] or "")[:19],
-                        "close_time": str(r["close_date"] or "")[:19],
-                        "exit_reason": r["exit_reason"] or "take_profit",
-                        "strategy": "v2_pullback",
-                        "decision_trace_id": f"TRACE_TRD_{r['id']}",
-                    })
-                conn.close()
-            except Exception as e:
-                logger.warning(f"Could not load closed trades from sqlite: {e}")
+        try:
+            rows = self.db.query(
+                "SELECT * FROM trades WHERE is_open = 0 ORDER BY id DESC LIMIT ?", (limit,)
+            )
+            for r in rows:
+                entry = float(r["open_rate"] or 0.0)
+                close = float(r["close_rate"] or entry)
+                pnl_pct = float(r["close_profit"] or 0.0) * 100.0
+                pnl_usd = float(r["close_profit_abs"] or (close - entry) * float(r["amount"] or 1.0))
+                trades.append({
+                    "trade_id": f"TRD_{r['id']}",
+                    "symbol": r["pair"],
+                    "side": "LONG",
+                    "amount": float(r["amount"] or 0.0),
+                    "entry_price": entry,
+                    "exit_price": close,
+                    "pnl_usd": round(pnl_usd, 2),
+                    "pnl_pct": round(pnl_pct, 2),
+                    "open_time": str(r["open_date"] or "")[:19],
+                    "close_time": str(r["close_date"] or "")[:19],
+                    "exit_reason": r["exit_reason"] or "take_profit",
+                    "strategy": "v2_pullback",
+                    "decision_trace_id": f"TRACE_TRD_{r['id']}",
+                })
+        except Exception as e:
+            logger.warning(f"Could not load closed trades from database: {e}")
 
         return trades
 
     def get_decision_traces(self, trade_id: Optional[str] = None) -> List[Dict[str, Any]]:
         """Returns the full causal decision chain for trades and signals."""
-        db_path = os.path.join(self.base_dir, "user_data", "tradesv3.dryrun.sqlite")
         trades_to_trace = []
-        if os.path.exists(db_path):
-            try:
-                conn = sqlite3.connect(db_path)
-                conn.row_factory = sqlite3.Row
-                c = conn.cursor()
-                if trade_id and trade_id != "TRACE_SIGNAL_REJECT":
-                    clean_id = str(trade_id).replace("TRACE_", "").replace("TRD_", "").strip()
-                    try:
-                        int_id = int(clean_id)
-                        rows = c.execute("SELECT * FROM trades WHERE id = ?", (int_id,)).fetchall()
-                    except ValueError:
-                        rows = []
-                else:
-                    rows = c.execute("SELECT * FROM trades WHERE is_open = 0 ORDER BY id DESC LIMIT 5").fetchall()
-                for r in rows:
-                    trades_to_trace.append(dict(r))
-                conn.close()
-            except Exception as e:
-                logger.warning(f"Could not load trades for trace: {e}")
+        try:
+            if trade_id and trade_id != "TRACE_SIGNAL_REJECT":
+                clean_id = str(trade_id).replace("TRACE_", "").replace("TRD_", "").strip()
+                try:
+                    int_id = int(clean_id)
+                    rows = self.db.query("SELECT * FROM trades WHERE id = ?", (int_id,))
+                except ValueError:
+                    rows = []
+            else:
+                rows = self.db.query("SELECT * FROM trades WHERE is_open = 0 ORDER BY id DESC LIMIT 5")
+            trades_to_trace.extend(rows)
+        except Exception as e:
+            logger.warning(f"Could not load trades for trace: {e}")
 
         traces = []
         for tr in trades_to_trace:
@@ -683,34 +658,32 @@ class ControlPlaneAPI:
         daily_loss_usd = 0.0
         consecutive_losses = 0
 
-        if os.path.exists(db_path):
-            try:
-                conn = sqlite3.connect(db_path)
-                conn.row_factory = sqlite3.Row
-                c = conn.cursor()
-                w = c.execute("SELECT balance FROM wallet_history WHERE currency = 'USDT' ORDER BY id DESC LIMIT 1").fetchone()
-                if w and w["balance"]:
-                    equity = float(w["balance"])
+        try:
+            w = self.db.query_one("SELECT balance FROM wallet_history WHERE currency = 'USDT' ORDER BY id DESC LIMIT 1")
+            if w and w.get("balance"):
+                equity = float(w["balance"])
 
-                p = c.execute("SELECT max(balance) FROM wallet_history WHERE currency = 'USDT'").fetchone()
-                if p and p[0]:
-                    peak_equity = float(p[0])
+            p = self.db.query_one("SELECT max(balance) as max_bal FROM wallet_history WHERE currency = 'USDT'")
+            if p and p.get("max_bal"):
+                peak_equity = float(p["max_bal"])
 
-                since = (datetime.now(timezone.utc) - timedelta(days=1)).strftime("%Y-%m-%d %H:%M:%S")
-                recent_losses = c.execute("SELECT sum(close_profit_abs) FROM trades WHERE is_open = 0 AND close_date >= ? AND close_profit_abs < 0", (since,)).fetchone()
-                if recent_losses and recent_losses[0]:
-                    daily_loss_usd = abs(float(recent_losses[0]))
+            since = (datetime.now(timezone.utc) - timedelta(days=1)).strftime("%Y-%m-%d %H:%M:%S")
+            recent_losses = self.db.query_one(
+                "SELECT sum(close_profit_abs) as sum_loss FROM trades WHERE is_open = 0 AND close_date >= ? AND close_profit_abs < 0",
+                (since,)
+            )
+            if recent_losses and recent_losses.get("sum_loss"):
+                daily_loss_usd = abs(float(recent_losses["sum_loss"]))
 
-                trows = c.execute("SELECT close_profit_abs FROM trades WHERE is_open = 0 ORDER BY id DESC LIMIT 20").fetchall()
-                for r in trows:
-                    pnl = float(r["close_profit_abs"] or 0.0)
-                    if pnl < 0:
-                        consecutive_losses += 1
-                    else:
-                        break
-                conn.close()
-            except Exception as e:
-                logger.warning(f"Could not load risk metrics from sqlite: {e}")
+            trows = self.db.query("SELECT close_profit_abs FROM trades WHERE is_open = 0 ORDER BY id DESC LIMIT 20")
+            for r in trows:
+                pnl = float(r.get("close_profit_abs") or 0.0)
+                if pnl < 0:
+                    consecutive_losses += 1
+                else:
+                    break
+        except Exception as e:
+            logger.warning(f"Could not load risk metrics from database: {e}")
 
         open_positions = self.get_positions()
         total_exposure_usd = sum(p["size"] * p["mark_price"] for p in open_positions)
@@ -1283,31 +1256,25 @@ class ControlPlaneAPI:
             except Exception as e:
                 logger.warning(f"Could not parse agent audit logs for events: {e}")
 
-        db_path = os.path.join(self.base_dir, "user_data", "tradesv3.dryrun.sqlite")
-        if os.path.exists(db_path):
-            try:
-                conn = sqlite3.connect(db_path)
-                conn.row_factory = sqlite3.Row
-                c = conn.cursor()
-                orders = c.execute("SELECT * FROM orders ORDER BY id DESC LIMIT 20").fetchall()
-                for o in orders:
-                    oid = o["order_id"] or f"ORD_{o['id']}"
-                    pair = o["symbol"] or o["ft_pair"] or "ETH/USDT:USDT"
-                    side = (o["side"] or o["ft_order_side"] or "buy").upper()
-                    st = (o["status"] or "FILLED").upper()
-                    pr = float(o["price"] or o["ft_price"] or 0.0)
-                    dt = str(o["order_date"] or "")[:19] + " UTC"
-                    events.append({
-                        "id": f"EVT_ORD_{o['id']}",
-                        "timestamp": dt,
-                        "severity": "INFO",
-                        "domain": "ORDER",
-                        "message": f"Order {oid} {st} ({side} {pair} @ {pr:.4f})",
-                        "correlation_id": f"FT_TRD_{o['ft_trade_id']}",
-                    })
-                conn.close()
-            except Exception as e:
-                logger.warning(f"Could not load order events from sqlite: {e}")
+        try:
+            orders = self.db.query("SELECT * FROM orders ORDER BY id DESC LIMIT 20")
+            for o in orders:
+                oid = o.get("order_id") or f"ORD_{o['id']}"
+                pair = o.get("symbol") or o.get("ft_pair") or "ETH/USDT:USDT"
+                side = (o.get("side") or o.get("ft_order_side") or "buy").upper()
+                st = (o.get("status") or "FILLED").upper()
+                pr = float(o.get("price") or o.get("ft_price") or 0.0)
+                dt = str(o.get("order_date") or "")[:19] + " UTC"
+                events.append({
+                    "id": f"EVT_ORD_{o['id']}",
+                    "timestamp": dt,
+                    "severity": "INFO",
+                    "domain": "ORDER",
+                    "message": f"Order {oid} {st} ({side} {pair} @ {pr:.4f})",
+                    "correlation_id": f"FT_TRD_{o.get('ft_trade_id')}",
+                })
+        except Exception as e:
+            logger.warning(f"Could not load order events from database: {e}")
 
         events.sort(key=lambda x: x.get("timestamp", ""), reverse=True)
         return events[:limit]
@@ -1332,3 +1299,19 @@ class ControlPlaneAPI:
     def update_settings(self, new_settings: Dict[str, Any]) -> Dict[str, Any]:
         self._user_settings.update(new_settings)
         return self._user_settings
+
+    # -------------------------------------------------------------------------
+    # 14. DATABASE MANAGEMENT & SUBSYSTEM ROUTING
+    # -------------------------------------------------------------------------
+
+    def get_database_status(self) -> Dict[str, Any]:
+        """Returns active database backend, connectivity, and telemetry table stats."""
+        return self.db.get_status()
+
+    def switch_database_backend(self, target: str, url: Optional[str] = None) -> Dict[str, Any]:
+        """Dynamically switches between SQLite (default) and PostgreSQL."""
+        return self.db.switch_backend(target, url)
+
+    def migrate_database(self) -> Dict[str, Any]:
+        """Migrates SQLite trading telemetry to PostgreSQL."""
+        return self.db.migrate_sqlite_to_postgres()
