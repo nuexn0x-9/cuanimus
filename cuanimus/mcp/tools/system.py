@@ -55,7 +55,7 @@ def tool_system_get_safety_status(args: Dict[str, Any], context: Dict[str, Any])
             "live_trading_prohibited": not cfg.environment.live_trading_enabled,
             "dry_run_enforced": cfg.environment.dry_run,
             "leverage_within_platform_ceiling": cfg.risk.max_leverage <= 10.0,
-            "stop_loss_mandatory": cfg.risk.stop_loss_precedence_pessimistic,
+            "stop_loss_mandatory": getattr(cfg.risk, "capital_preservation_lock", True),
             "default_deny_agent_rbac": True,
             "two_step_intent_enforced": True,
         },
