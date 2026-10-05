@@ -1,58 +1,102 @@
 /* ==========================================================================
-   CUANIMUS WEB CONTROL CENTER & TRADING INTERFACE
-   Professional, Dense, High-Performance Quantitative Trading Design System
+   CUANIMUS WEB CONTROL CENTER — QUANTITATIVE TRADING TERMINAL
+   Centralized Design System & High-Density Trading Tokens
+   Palette: #45FFCA (Primary) · #FEFFAC (Warning) · #FFB6D9 (Accent) · #D67BFF (AI/MCP)
    ========================================================================== */
 
 :root {
-  /* Surface colors (Dark Theme Priority) */
-  --bg-app: #0a0d14;
-  --bg-surface-1: #101522;
-  --bg-surface-2: #161d2f;
-  --bg-surface-3: #1f2942;
-  --bg-surface-hover: #263352;
-  --bg-glass: rgba(16, 21, 34, 0.85);
+  /* ── BRAND PALETTE TOKENS ── */
+  --color-primary:          #45FFCA;   /* Turquoise: CTA, active nav, positive, indicators */
+  --color-primary-dim:      rgba(69, 255, 202, 0.12);
+  --color-primary-border:   rgba(69, 255, 202, 0.30);
+  --color-primary-glow:     0 0 16px rgba(69, 255, 202, 0.35);
+  --color-primary-text:     #080b12;
 
-  /* Border & Divider */
-  --border-subtle: #202a42;
-  --border-strong: #2e3c5e;
-  --border-focus: #1890ff;
+  --color-secondary:        #FEFFAC;   /* Light Yellow: Warning, attention, highlight */
+  --color-secondary-dim:    rgba(254, 255, 172, 0.12);
+  --color-secondary-border: rgba(254, 255, 172, 0.30);
 
-  /* Typography */
+  --color-accent-pink:      #FFB6D9;   /* Pink: Secondary accent, soft warning, notifications */
+  --color-accent-pink-dim:  rgba(255, 182, 217, 0.12);
+  --color-accent-pink-border: rgba(255, 182, 217, 0.30);
+
+  --color-accent-purple:    #D67BFF;   /* Purple: AI, Agent, MCP, Strategy */
+  --color-accent-purple-dim: rgba(214, 123, 255, 0.12);
+  --color-accent-purple-border: rgba(214, 123, 255, 0.30);
+
+  /* ── BACKGROUND & SURFACE TOKENS ── */
+  --color-background:       #080b12;
+  --color-surface:          #0d1117;
+  --color-surface-elevated: #131923;
+  --bg-app:                 #080b12;
+  --bg-surface-1:           #0d1117;
+  --bg-surface-2:           #131923;
+  --bg-surface-3:           #1a2333;
+  --bg-surface-hover:       #222f44;
+  --bg-glass:               rgba(13, 17, 23, 0.88);
+
+  /* ── BORDER & DIVIDER ── */
+  --color-border:           #1e2d40;
+  --color-border-strong:    #2a3f5a;
+  --border-subtle:          #1e2d40;
+  --border-strong:          #2a3f5a;
+  --border-focus:           #45FFCA;
+
+  /* ── TYPOGRAPHY ── */
   --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   --font-mono: "JetBrains Mono", "SF Mono", Menlo, Consolas, Monaco, "Liberation Mono", monospace;
-  
-  --text-primary: #f0f4f8;
-  --text-secondary: #9baac3;
-  --text-muted: #5e6f8d;
-  --text-inverse: #0a0d14;
 
-  /* Trading State Colors */
-  --color-bull: #00c076;
-  --color-bull-bg: rgba(0, 192, 118, 0.12);
-  --color-bear: #f73859;
-  --color-bear-bg: rgba(247, 56, 89, 0.12);
-  --color-warning: #faad14;
-  --color-warning-bg: rgba(250, 173, 20, 0.12);
-  --color-info: #00b4d8;
-  --color-info-bg: rgba(0, 180, 216, 0.12);
-  --color-brand: #3b82f6;
+  --color-text-primary:     #e8edf5;
+  --color-text-secondary:   #8899b4;
+  --color-text-muted:       #4a5a70;
+  --text-primary:           #e8edf5;
+  --text-secondary:         #8899b4;
+  --text-muted:             #4a5a70;
+  --text-inverse:           #080b12;
 
-  /* Environment Badges */
-  --badge-paper-bg: #1e3a5f;
-  --badge-paper-text: #60a5fa;
-  --badge-testnet-bg: #4c1d95;
-  --badge-testnet-text: #c084fc;
-  --badge-live-bg: #7f1d1d;
-  --badge-live-text: #f87171;
+  /* ── SEMANTIC COLORS ── */
+  --color-success:          #45FFCA;
+  --color-success-bg:       rgba(69, 255, 202, 0.12);
+  --color-warning:          #FEFFAC;
+  --color-warning-bg:       rgba(254, 255, 172, 0.12);
+  --color-danger:           #ff4d6d;
+  --color-danger-bg:        rgba(255, 77, 109, 0.14);
+  --color-info:             #45FFCA;
+  --color-info-bg:          rgba(69, 255, 202, 0.12);
 
-  /* Metrics & Elevation */
+  /* ── TRADING STATE COLORS ── */
+  --color-bull:             #45FFCA;
+  --color-bull-bg:          rgba(69, 255, 202, 0.12);
+  --color-bear:             #ff4d6d;
+  --color-bear-bg:          rgba(255, 77, 109, 0.14);
+  --color-brand:            #45FFCA;
+
+  /* ── CHART COLORS ── */
+  --color-chart-primary:    #45FFCA;
+  --color-chart-secondary:  #D67BFF;
+  --color-chart-buy:        #45FFCA;
+  --color-chart-sell:       #ff4d6d;
+  --color-chart-grid:       #131923;
+  --color-chart-ema20:      #45FFCA;
+  --color-chart-ema50:      #D67BFF;
+
+  /* ── ENVIRONMENT BADGES ── */
+  --badge-paper-bg:         rgba(69, 255, 202, 0.12);
+  --badge-paper-text:       #45FFCA;
+  --badge-testnet-bg:       rgba(214, 123, 255, 0.14);
+  --badge-testnet-text:     #D67BFF;
+  --badge-live-bg:          rgba(255, 77, 109, 0.16);
+  --badge-live-text:        #ff4d6d;
+
+  /* ── ELEVATION & METRICS ── */
   --radius-sm: 4px;
   --radius-md: 6px;
   --radius-lg: 8px;
-  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3);
-  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
-  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.6);
-  --shadow-glow-red: 0 0 16px rgba(247, 56, 89, 0.4);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.7);
+  --shadow-glow-primary: 0 0 16px rgba(69, 255, 202, 0.35);
+  --shadow-glow-red: 0 0 16px rgba(255, 77, 109, 0.4);
 }
 
 /* Light Theme Variables */
@@ -150,14 +194,15 @@ a:hover {
 .brand-logo-icon {
   width: 24px;
   height: 24px;
-  background: linear-gradient(135deg, #3b82f6, #00c076);
+  background: linear-gradient(135deg, var(--color-primary), var(--color-accent-purple));
   border-radius: var(--radius-sm);
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #fff;
+  color: var(--color-primary-text);
   font-weight: 900;
   font-size: 13px;
+  box-shadow: 0 0 10px rgba(69, 255, 202, 0.3);
 }
 
 .env-indicator {
@@ -303,9 +348,9 @@ a:hover {
 }
 .nav-item.active {
   background-color: var(--bg-surface-3);
-  color: var(--text-primary);
+  color: var(--color-primary);
   font-weight: 600;
-  border-left: 3px solid var(--color-brand);
+  border-left: 3px solid var(--color-primary);
 }
 .nav-icon {
   width: 16px;
@@ -508,18 +553,22 @@ a:hover {
   background-color: var(--bg-surface-hover);
 }
 .btn-primary {
-  background-color: var(--color-brand);
-  color: #fff;
+  background-color: var(--color-primary);
+  color: var(--color-primary-text);
+  font-weight: 700;
 }
 .btn-primary:hover {
-  background-color: #2563eb;
+  background-color: #38e0b2;
+  box-shadow: var(--shadow-glow-primary);
 }
 .btn-success {
   background-color: var(--color-bull);
-  color: #000;
+  color: #080b12;
+  font-weight: 700;
 }
 .btn-success:hover {
-  background-color: #00a867;
+  background-color: #38e0b2;
+  box-shadow: var(--shadow-glow-primary);
 }
 .btn-danger {
   background-color: var(--color-bear);
@@ -527,6 +576,21 @@ a:hover {
 }
 .btn-danger:hover {
   background-color: #e02447;
+  box-shadow: var(--shadow-glow-red);
+}
+.btn-ai, .btn-purple {
+  background-color: var(--color-accent-purple);
+  color: #080b12;
+  font-weight: 700;
+}
+.btn-ai:hover, .btn-purple:hover {
+  background-color: #bf60e6;
+  box-shadow: 0 0 16px rgba(214, 123, 255, 0.35);
+}
+.btn-warning {
+  background-color: var(--color-secondary);
+  color: #080b12;
+  font-weight: 700;
 }
 .btn-sm {
   padding: 4px 8px;
@@ -573,9 +637,10 @@ a:hover {
   cursor: pointer;
 }
 .tf-btn.active {
-  background: var(--color-brand);
-  color: #fff;
-  border-color: var(--color-brand);
+  background: var(--color-primary);
+  color: var(--color-primary-text);
+  border-color: var(--color-primary);
+  box-shadow: 0 0 8px rgba(69, 255, 202, 0.3);
 }
 
 .canvas-wrapper {
@@ -808,7 +873,7 @@ canvas#main-chart {
 .toast {
   background-color: var(--bg-surface-2);
   border: 1px solid var(--border-strong);
-  border-left: 4px solid var(--color-brand);
+  border-left: 4px solid var(--color-primary);
   padding: 10px 14px;
   border-radius: var(--radius-sm);
   color: var(--text-primary);
@@ -819,9 +884,17 @@ canvas#main-chart {
   gap: 10px;
   animation: slideToast 0.25s ease-out;
 }
-.toast.success { border-left-color: var(--color-bull); }
-.toast.error { border-left-color: var(--color-bear); }
-.toast.warn { border-left-color: var(--color-warning); }
+.toast.success { border-left-color: var(--color-primary); }
+.toast.error { border-left-color: var(--color-danger); }
+.toast.warn { border-left-color: var(--color-secondary); }
+.toast.ai, .toast.purple { border-left-color: var(--color-accent-purple); }
+.toast.pink { border-left-color: var(--color-accent-pink); }
+
+/* Palette Badges & Tags */
+.badge-primary { background: var(--color-primary-dim); color: var(--color-primary); border: 1px solid var(--color-primary-border); }
+.badge-warning { background: var(--color-secondary-dim); color: var(--color-secondary); border: 1px solid var(--color-secondary-border); }
+.badge-pink { background: var(--color-accent-pink-dim); color: var(--color-accent-pink); border: 1px solid var(--color-accent-pink-border); }
+.badge-ai, .badge-purple { background: var(--color-accent-purple-dim); color: var(--color-accent-purple); border: 1px solid var(--color-accent-purple-border); }
 
 @keyframes slideToast {
   from { transform: translateX(100%); opacity: 0; }

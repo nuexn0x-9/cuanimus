@@ -416,6 +416,21 @@ class CuanimusApp {
         this.loadChartData();
       });
 
+      // Dynamically load active USDT perpetual pairs from Binance
+      API.getPairs().then(res => {
+        const pairs = res.pairs || [];
+        const sel = document.getElementById('select-trading-pair');
+        if (sel && pairs.length > 0) {
+          const cur = this.selectedSymbol;
+          const options = pairs.map(p => {
+            const sym = p.internal || (p.symbol.endsWith('USDT') ? p.symbol.slice(0, -4) + '/USDT:USDT' : p.symbol);
+            return `<option value="${sym}" ${sym === cur ? 'selected' : ''}>${p.symbol} (${p.base})</option>`;
+          }).join('');
+          sel.innerHTML = options;
+          if ([...sel.options].some(o => o.value === cur)) sel.value = cur;
+        }
+      }).catch(() => {});
+
       document.querySelectorAll('.tf-btn').forEach(btn => {
         btn.addEventListener('click', () => {
           document.querySelectorAll('.tf-btn').forEach(b => b.classList.remove('active'));
@@ -1160,19 +1175,23 @@ class CuanimusApp {
     const container = document.getElementById('view-agents');
     if (!container) return;
 
-    const [agentsRes, sessRes] = await Promise.all([
+    const [agentsRes, sessRes, aiRes, mcpRes] = await Promise.all([
       API.getAgents().catch(() => ({ agents: [] })),
-      API.getSessions().catch(() => ({ sessions: [] }))
+      API.getSessions().catch(() => ({ sessions: [] })),
+      API.getAiConfig().catch(() => ({})),
+      API.getMcpTools().catch(() => ({ tools: [] }))
     ]);
 
     const agents = agentsRes.agents || [];
     const sessions = sessRes.sessions || [];
+    const aiConfig = aiRes || {};
+    const mcpTools = mcpRes.tools || [];
 
     let html = `
       <div class="view-header">
         <div>
-          <div class="view-title"><span>🤖</span> AI Agent Center & Sessions</div>
-          <div class="view-subtitle">Autonomous trading sessions, watchdog health & policy enforcement</div>
+          <div class="view-title"><span>🤖</span> AI Agent Center, MCP Protocol & LLM Configuration</div>
+          <div class="view-subtitle">Autonomous trading sessions, model providers, dynamic MCP tools & watchdog health</div>
         </div>
         <div class="view-actions">
           <button class="btn btn-primary btn-sm" id="btn-create-session">▶ Start New Paper Session</button>
@@ -1241,10 +1260,103 @@ class CuanimusApp {
         </div>
       </div>
 
-      <!-- Registered Agents -->
-      <div class="table-panel">
+      <!-- AI Provider & API Key Configuration -->
+      <div class="table-panel" style="margin-top: 16px;">
         <div class="panel-header">
-          <div class="panel-title"><span>👥</span> Registered AI Agents</div>
+          <div class="panel-title"><span style="color: var(--color-accent-purple);">🧠</span> AI Model Provider & Inference Endpoint</div>
+          <span class="badge badge-purple">${aiConfig.enabled ? 'AI LAYER ACTIVE' : 'DETERMINISTIC MODE'}</span>
+        </div>
+        <div style="padding: 16px;">
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; margin-bottom: 16px;">
+            <div>
+              <label style="display: block; font-size: 11px; color: var(--text-secondary); margin-bottom: 4px;">Provider</label>
+              <select id="ai-provider-select" class="btn btn-sm" style="width: 100%; background: var(--bg-surface-3); color: var(--text-primary); text-align: left;">
+                <option value="gemini" ${aiConfig.provider === 'gemini' ? 'selected' : ''}>Google Gemini (Official REST)</option>
+                <option value="antigravity" ${aiConfig.provider === 'antigravity' ? 'selected' : ''}>Antigravity Agent Copilot</option>
+                <option value="openai" ${aiConfig.provider === 'openai' ? 'selected' : ''}>OpenAI Compatible</option>
+                <option value="anthropic" ${aiConfig.provider === 'anthropic' ? 'selected' : ''}>Anthropic Claude</option>
+                <option value="mock" ${aiConfig.provider === 'mock' ? 'selected' : ''}>Mock / Offline Deterministic</option>
+              </select>
+            </div>
+            <div>
+              <label style="display: block; font-size: 11px; color: var(--text-secondary); margin-bottom: 4px;">Model Identifier</label>
+              <input id="ai-model-input" type="text" class="btn btn-sm mono" style="width: 100%; background: var(--bg-surface-3); color: var(--text-primary); text-align: left;" value="${aiConfig.model_name || 'gemini-2.5-flash'}" placeholder="e.g. gemini-2.5-flash">
+            </div>
+            <div>
+              <label style="display: block; font-size: 11px; color: var(--text-secondary); margin-bottom: 4px;">API Key / Agent Token</label>
+              <input id="ai-key-input" type="password" class="btn btn-sm mono" style="width: 100%; background: var(--bg-surface-3); color: var(--text-primary); text-align: left;" placeholder="${aiConfig.api_key_masked ? 'Configured: ' + aiConfig.api_key_masked : 'Enter API Key (cnms_agent_... or AIza...)'}">
+            </div>
+            <div>
+              <label style="display: block; font-size: 11px; color: var(--text-secondary); margin-bottom: 4px;">Inference Mode</label>
+              <select id="ai-mode-select" class="btn btn-sm" style="width: 100%; background: var(--bg-surface-3); color: var(--text-primary); text-align: left;">
+                <option value="regime_context" ${aiConfig.mode === 'regime_context' ? 'selected' : ''}>Regime & Macro Bias Context</option>
+                <option value="advisory" ${aiConfig.mode === 'advisory' ? 'selected' : ''}>Advisory Signal Validation</option>
+                <option value="autonomous_paper" ${aiConfig.mode === 'autonomous_paper' ? 'selected' : ''}>Autonomous Paper Trading</option>
+              </select>
+            </div>
+          </div>
+
+          <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; border-top: 1px solid var(--border-subtle); padding-top: 12px;">
+            <div style="display: flex; align-items: center; gap: 12px;">
+              <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 12px;">
+                <input id="ai-enabled-chk" type="checkbox" ${aiConfig.enabled ? 'checked' : ''}>
+                <b>Enable AI Intelligence Layer</b>
+              </label>
+              <span id="ai-test-result" style="font-size: 11px; color: var(--text-muted);"></span>
+            </div>
+            <div style="display: flex; gap: 8px;">
+              <button class="btn btn-sm" id="btn-test-ai">⚡ Test Connection</button>
+              <button class="btn btn-primary btn-sm" id="btn-save-ai">💾 Save AI Configuration</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Dynamic MCP Tools Discovery -->
+      <div class="table-panel" style="margin-top: 16px;">
+        <div class="panel-header">
+          <div class="panel-title"><span style="color: var(--color-accent-purple);">🔌</span> Model Context Protocol (MCP) Registered Tools (${mcpTools.length})</div>
+          <span style="font-size: 11px; color: var(--text-muted);">Port :8889 / /mcp JSON-RPC 2.0</span>
+        </div>
+        <div class="table-responsive">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Tool Name</th>
+                <th>Description</th>
+                <th>Required Permission</th>
+                <th>Input Schema Properties</th>
+              </tr>
+            </thead>
+            <tbody>
+    `;
+
+    if (mcpTools.length === 0) {
+      html += `<tr><td colspan="4" style="text-align: center; color: var(--text-muted); padding: 16px;">No MCP tools registered.</td></tr>`;
+    } else {
+      mcpTools.forEach(t => {
+        const props = Object.keys(t.inputSchema?.properties || {}).join(', ') || 'None';
+        html += `
+          <tr>
+            <td class="mono" style="color: var(--color-accent-purple);"><b>${t.name}</b></td>
+            <td>${t.description}</td>
+            <td><span class="badge badge-paper">${t.name.startsWith('place_') || t.name.startsWith('cancel_') ? 'TRADE_EXECUTE' : 'MARKET_READ'}</span></td>
+            <td class="mono" style="font-size: 11px; color: var(--text-secondary);">${props}</td>
+          </tr>
+        `;
+      });
+    }
+
+    html += `
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Registered Agents -->
+      <div class="table-panel" style="margin-top: 16px;">
+        <div class="panel-header">
+          <div class="panel-title"><span>👥</span> Registered AI Identities (${agents.length})</div>
         </div>
         <div class="table-responsive">
           <table class="data-table">
@@ -1283,6 +1395,7 @@ class CuanimusApp {
 
     container.innerHTML = html;
 
+    // Bind Session Button
     const btnCreate = document.getElementById('btn-create-session');
     if (btnCreate) {
       btnCreate.addEventListener('click', async () => {
@@ -1292,6 +1405,63 @@ class CuanimusApp {
           this.refreshAll();
         } catch (err) {
           Toast.error("Failed to start session: " + err.message);
+        }
+      });
+    }
+
+    // Bind Test Connection Button
+    const btnTestAi = document.getElementById('btn-test-ai');
+    if (btnTestAi) {
+      btnTestAi.addEventListener('click', async () => {
+        const prov = document.getElementById('ai-provider-select').value;
+        const model = document.getElementById('ai-model-input').value;
+        const key = document.getElementById('ai-key-input').value;
+        const statusEl = document.getElementById('ai-test-result');
+        if (statusEl) statusEl.textContent = 'Testing connection...';
+        btnTestAi.disabled = true;
+
+        try {
+          const res = await API.testAiConnection({ provider: prov, model_name: model, api_key: key });
+          if (res.status === 'CONNECTED') {
+            Toast.success(`AI Connected: ${res.model} (${res.latency_ms}ms)`);
+            if (statusEl) statusEl.innerHTML = `<span style="color: var(--color-primary);">✔ Connected (${res.latency_ms}ms)</span>`;
+          } else {
+            Toast.warn(res.message);
+            if (statusEl) statusEl.innerHTML = `<span style="color: var(--color-warning);">⚠ ${res.message}</span>`;
+          }
+        } catch (err) {
+          Toast.error("Test failed: " + err.message);
+          if (statusEl) statusEl.innerHTML = `<span style="color: var(--color-danger);">✖ ${err.message}</span>`;
+        } finally {
+          btnTestAi.disabled = false;
+        }
+      });
+    }
+
+    // Bind Save AI Config Button
+    const btnSaveAi = document.getElementById('btn-save-ai');
+    if (btnSaveAi) {
+      btnSaveAi.addEventListener('click', async () => {
+        const prov = document.getElementById('ai-provider-select').value;
+        const model = document.getElementById('ai-model-input').value;
+        const key = document.getElementById('ai-key-input').value;
+        const mode = document.getElementById('ai-mode-select').value;
+        const enabled = document.getElementById('ai-enabled-chk').checked;
+
+        try {
+          const payload = {
+            provider: prov,
+            model_name: model,
+            mode: mode,
+            enabled: enabled,
+          };
+          if (key) payload.api_key = key;
+
+          await API.saveAiConfig(payload);
+          Toast.success("AI Intelligence configuration saved & applied!");
+          this.renderAgents();
+        } catch (err) {
+          Toast.error("Failed to save AI config: " + err.message);
         }
       });
     }

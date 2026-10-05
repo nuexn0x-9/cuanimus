@@ -100,6 +100,15 @@ const API = {
   getCandles(symbol = 'ETH/USDT:USDT', timeframe = '15m', limit = 80) {
     return this.request(`/api/markets/candles?symbol=${encodeURIComponent(symbol)}&timeframe=${encodeURIComponent(timeframe)}&limit=${limit}`);
   },
+  getPairs() {
+    return this.request('/api/markets/pairs');
+  },
+  getTicker(symbol = 'ETH/USDT:USDT') {
+    return this.request(`/api/markets/ticker?symbol=${encodeURIComponent(symbol)}`);
+  },
+  getMarkPrice(symbol = 'ETH/USDT:USDT') {
+    return this.request(`/api/markets/mark-price?symbol=${encodeURIComponent(symbol)}`);
+  },
 
   // 4. Risk Center
   getRiskStatus() {
@@ -159,6 +168,24 @@ const API = {
   },
   getAgentAudit() {
     return this.request('/api/agents/audit');
+  },
+  getMcpTools() {
+    return this.request('/api/agents/mcp-tools');
+  },
+  getAiConfig() {
+    return this.request('/api/ai/config');
+  },
+  saveAiConfig(aiConfig) {
+    return this.request('/api/ai/config', {
+      method: 'POST',
+      body: JSON.stringify(aiConfig)
+    });
+  },
+  testAiConnection(payload) {
+    return this.request('/api/ai/test-connection', {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    });
   },
   proposeConfig(prompt) {
     return this.request('/api/agents/propose-config', {

@@ -252,6 +252,14 @@ class CuanimusHttpHandler(BaseHTTPRequestHandler):
                 tf = query.get("timeframe", ["15m"])[0]
                 lim = int(query.get("limit", [80])[0])
                 self._send_json(200, self.api.get_candles(symbol=sym, timeframe=tf, limit=lim))
+            elif path == "/api/markets/pairs":
+                self._send_json(200, self.api.get_market_pairs())
+            elif path == "/api/markets/ticker":
+                sym = query.get("symbol", ["ETH/USDT:USDT"])[0]
+                self._send_json(200, self.api.get_market_ticker(sym))
+            elif path == "/api/markets/mark-price":
+                sym = query.get("symbol", ["ETH/USDT:USDT"])[0]
+                self._send_json(200, self.api.get_mark_price(sym))
             elif path == "/api/risk/status":
                 self._send_json(200, self.api.get_risk_status())
             elif path == "/api/risk/profiles":
@@ -274,6 +282,10 @@ class CuanimusHttpHandler(BaseHTTPRequestHandler):
                 self._send_json(200, {"agents": self.api.list_agents()})
             elif path == "/api/agents/sessions":
                 self._send_json(200, {"sessions": self.api.list_agent_sessions()})
+            elif path == "/api/agents/mcp-tools":
+                self._send_json(200, {"tools": self.api.list_mcp_tools()})
+            elif path == "/api/ai/config":
+                self._send_json(200, self.api.get_ai_config())
             elif path == "/api/agents/audit":
                 self._send_json(200, {"audit_logs": self.api.get_agent_audit_logs()})
             elif path == "/api/config/schema":
@@ -364,6 +376,10 @@ class CuanimusHttpHandler(BaseHTTPRequestHandler):
                 filename = body.get("filename", "cuanimus.user.yaml")
                 cfg = body.get("config", {})
                 self._send_json(200, self.api.save_configuration(cfg, filename))
+            elif path == "/api/ai/config":
+                self._send_json(200, self.api.save_ai_config(body))
+            elif path == "/api/ai/test-connection":
+                self._send_json(200, self.api.test_ai_connection(body))
             elif path == "/api/research/backtest/run":
                 self._send_json(200, self.api.run_backtest(body))
             elif path == "/api/telegram/test":

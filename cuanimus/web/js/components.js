@@ -275,7 +275,7 @@ const Modals = {
         document.getElementById('copilot-summary-text').innerText = res.summary || "Configuration Proposal Generated";
         let diffHtml = '';
         (res.diff || []).forEach(d => {
-          diffHtml += `<div style="padding: 2px 0;"><span style="color: #94a3b8;">${d.path}:</span> <span style="color: #f43f5e;">${JSON.stringify(d.from)}</span> → <span style="color: #00c076;">${JSON.stringify(d.to)}</span></div>`;
+          diffHtml += `<div style="padding: 2px 0;"><span style="color: var(--color-text-secondary);">${d.path}:</span> <span style="color: var(--color-danger);">${JSON.stringify(d.from)}</span> → <span style="color: var(--color-primary);">${JSON.stringify(d.to)}</span></div>`;
         });
         document.getElementById('copilot-diff-list').innerHTML = diffHtml || "<div>No changes required.</div>";
         document.getElementById('copilot-result-container').style.display = 'block';

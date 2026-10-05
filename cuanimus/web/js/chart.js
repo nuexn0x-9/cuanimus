@@ -22,18 +22,21 @@ class CuanimusChart {
       showOrderBlock: true,
     };
 
+    const style = typeof window !== 'undefined' && window.getComputedStyle ? window.getComputedStyle(document.documentElement) : null;
+    const cssVar = (v, fallback) => (style ? style.getPropertyValue(v).trim() : '') || fallback;
+
     this.colors = {
-      bg: '#0c101a',
-      grid: '#1a2233',
-      text: '#64748b',
-      bull: '#00c076',
-      bear: '#f73859',
-      ema20: '#38bdf8',
-      ema50: '#a855f7',
-      sl: '#f43f5e',
-      tp: '#10b981',
-      orderBlock: 'rgba(0, 192, 118, 0.12)',
-      crosshair: '#475569'
+      bg: cssVar('--bg-app', '#080b12'),
+      grid: cssVar('--color-chart-grid', '#131923'),
+      text: cssVar('--color-text-secondary', '#8899b4'),
+      bull: cssVar('--color-chart-buy', '#45FFCA'),
+      bear: cssVar('--color-chart-sell', '#ff4d6d'),
+      ema20: cssVar('--color-chart-ema20', '#45FFCA'),
+      ema50: cssVar('--color-chart-ema50', '#D67BFF'),
+      sl: '#ff4d6d',
+      tp: cssVar('--color-primary', '#45FFCA'),
+      orderBlock: 'rgba(69, 255, 202, 0.12)',
+      crosshair: '#4a5a70'
     };
 
     this._bindEvents();
