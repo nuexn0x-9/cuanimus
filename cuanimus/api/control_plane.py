@@ -71,6 +71,11 @@ class ControlPlaneAPI:
             "telegram_alerts": True,
         }
 
+        # Initialize and start Autonomous Trading Engine
+        from cuanimus.engine import AutonomousTradingEngine
+        self.engine = AutonomousTradingEngine.get_instance()
+        self.engine.start()
+
         # Initialize mock/tracked active session if none exists
         self._ensure_default_session()
 
@@ -174,6 +179,15 @@ class ControlPlaneAPI:
     def trigger_emergency_stop(self, reason: str = "Operator Triggered Web Kill Switch") -> Dict[str, Any]:
         """Halts all agent sessions, locks RiskEngine, and dispatches Telegram alert."""
         res = self.session_manager.emergency_stop(reason=reason)
+        # Also pause any running autonomous profiles
+        if hasattr(self, "engine") and self.engine:
+            try:
+                for p in self.engine.store.list_profiles():
+                    if p.is_running:
+                        self.engine.pause_profile(p.profile_id)
+            except Exception as e:
+                logger.warning(f"Error pausing profiles during emergency stop: {e}")
+
         self.telegram.notify_emergency_stop(reason=reason, halted_sessions=res.get("halted_sessions", []))
         self.audit_logger.log_event(
             agent_id="operator_ui",
@@ -620,6 +634,8 @@ class ControlPlaneAPI:
 
         try:
             candles = adapter.get_klines(symbol, timeframe, limit)
+            if candles and len(candles) > limit:
+                candles = candles[-limit:]
         except Exception as e:
             logger.warning(f"Binance live klines fetch failed for {symbol}: {e}")
             stale = True
@@ -1542,4 +1558,78 @@ class ControlPlaneAPI:
         from cuanimus.mcp.tools import register_all_tools
         register_all_tools()
         return McpRegistry.list_tools()
+
+    # -------------------------------------------------------------------------
+    # 13. AUTONOMOUS TRADING ENGINE & TRADING PROFILES
+    # -------------------------------------------------------------------------
+
+    def list_trading_profiles(self) -> List[Dict[str, Any]]:
+        """Returns all trading profiles."""
+        return [p.to_dict() for p in self.engine.store.list_profiles()]
+
+    def get_trading_profile(self, profile_id: str) -> Optional[Dict[str, Any]]:
+        """Returns single profile by ID."""
+        p = self.engine.store.get_profile(profile_id)
+        return p.to_dict() if p else None
+
+    def create_trading_profile(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """Creates a new trading profile."""
+        from cuanimus.engine.models import TradingProfile
+        if not data.get("profile_id"):
+            data["profile_id"] = f"prof_{uuid.uuid4().hex[:8]}"
+        profile = TradingProfile.from_dict(data)
+        self.engine.store.save_profile(profile)
+        return profile.to_dict()
+
+    def update_trading_profile(self, profile_id: str, data: Dict[str, Any]) -> Dict[str, Any]:
+        """Updates an existing trading profile."""
+        from cuanimus.engine.models import TradingProfile
+        existing = self.engine.store.get_profile(profile_id)
+        if not existing:
+            raise KeyError(f"Profile {profile_id} not found")
+        data["profile_id"] = profile_id
+        profile = TradingProfile.from_dict(data)
+        self.engine.store.save_profile(profile)
+        return profile.to_dict()
+
+    def delete_trading_profile(self, profile_id: str) -> Dict[str, Any]:
+        """Deletes a trading profile."""
+        try:
+            self.engine.stop_profile(profile_id)
+        except Exception:
+            pass
+        ok = self.engine.store.delete_profile(profile_id)
+        return {"success": ok, "profile_id": profile_id}
+
+    def start_trading_profile(self, profile_id: str) -> Dict[str, Any]:
+        """Starts autonomous execution for profile."""
+        return self.engine.start_profile(profile_id)
+
+    def pause_trading_profile(self, profile_id: str) -> Dict[str, Any]:
+        """Pauses autonomous execution for profile."""
+        return self.engine.pause_profile(profile_id)
+
+    def stop_trading_profile(self, profile_id: str) -> Dict[str, Any]:
+        """Stops autonomous session for profile."""
+        return self.engine.stop_profile(profile_id)
+
+    def trigger_profile_tick(self, profile_id: str) -> Dict[str, Any]:
+        """Forces immediate evaluation tick on profile (useful for testing or manual prompt)."""
+        p = self.engine.store.get_profile(profile_id)
+        if not p:
+            raise KeyError(f"Profile {profile_id} not found")
+        return self.engine.evaluate_profile_tick(p, force=True)
+
+    def get_autonomous_engine_status(self) -> Dict[str, Any]:
+        """Returns autonomous engine status, active sessions, and health."""
+        return self.engine.get_engine_status()
+
+    def list_autonomous_sessions(self, limit: int = 50) -> List[Dict[str, Any]]:
+        """Returns autonomous trading sessions."""
+        return [s.to_dict() for s in self.engine.store.list_sessions(limit=limit)]
+
+    def list_autonomous_traces(self, limit: int = 50, profile_id: Optional[str] = None) -> List[Dict[str, Any]]:
+        """Returns decision traces."""
+        return self.engine.store.list_traces(limit=limit, profile_id=profile_id)
+
 

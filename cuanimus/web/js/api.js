@@ -238,6 +238,66 @@ const API = {
       method: 'POST',
       body: JSON.stringify(settings)
     });
+  },
+
+  // 10. Autonomous Trading Profiles & Engine
+  getTradingProfiles() {
+    return this.request('/api/trading/profiles');
+  },
+  getTradingProfile(id) {
+    return this.request(`/api/trading/profiles/${encodeURIComponent(id)}`);
+  },
+  createTradingProfile(data) {
+    return this.request('/api/trading/profiles', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    });
+  },
+  updateTradingProfile(id, data) {
+    return this.request(`/api/trading/profiles/${encodeURIComponent(id)}/update`, {
+      method: 'POST',
+      body: JSON.stringify(data)
+    });
+  },
+  deleteTradingProfile(id) {
+    return this.request(`/api/trading/profiles/${encodeURIComponent(id)}/delete`, {
+      method: 'POST',
+      body: JSON.stringify({})
+    });
+  },
+  startTradingProfile(id) {
+    return this.request(`/api/trading/profiles/${encodeURIComponent(id)}/start`, {
+      method: 'POST',
+      body: JSON.stringify({})
+    });
+  },
+  pauseTradingProfile(id) {
+    return this.request(`/api/trading/profiles/${encodeURIComponent(id)}/pause`, {
+      method: 'POST',
+      body: JSON.stringify({})
+    });
+  },
+  stopTradingProfile(id) {
+    return this.request(`/api/trading/profiles/${encodeURIComponent(id)}/stop`, {
+      method: 'POST',
+      body: JSON.stringify({})
+    });
+  },
+  triggerProfileTick(id) {
+    return this.request(`/api/trading/profiles/${encodeURIComponent(id)}/trigger`, {
+      method: 'POST',
+      body: JSON.stringify({})
+    });
+  },
+  getEngineStatus() {
+    return this.request('/api/trading/engine/status');
+  },
+  getEngineSessions() {
+    return this.request('/api/trading/engine/sessions');
+  },
+  getEngineTraces(profileId = null) {
+    const q = profileId ? `?profile_id=${encodeURIComponent(profileId)}` : '';
+    return this.request(`/api/trading/engine/traces${q}`);
   }
 };
 

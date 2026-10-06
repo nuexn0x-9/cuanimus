@@ -178,6 +178,9 @@ class CuanimusApp {
       case 'risk':
         this.renderRisk();
         break;
+      case 'autonomous':
+        this.renderAutonomous(isLightweight);
+        break;
       case 'agents':
         this.renderAgents();
         break;
@@ -1166,6 +1169,307 @@ class CuanimusApp {
         }
       });
     }
+  }
+
+  // -------------------------------------------------------------------------
+  // 6.5. AUTONOMOUS TRADING CENTER & TRADING PROFILES
+  // -------------------------------------------------------------------------
+  async renderAutonomous(isLightweight = false) {
+    const container = document.getElementById('view-autonomous');
+    if (!container) return;
+
+    const [profilesRes, engineRes, tracesRes, sessionsRes, positionsRes] = await Promise.all([
+      API.getTradingProfiles().catch(() => ({ profiles: [] })),
+      API.getEngineStatus().catch(() => ({ engine_running: false, running_profiles: [] })),
+      API.getEngineTraces().catch(() => ({ traces: [] })),
+      API.getEngineSessions().catch(() => ({ sessions: [] })),
+      API.getPositions().catch(() => ({ positions: [] }))
+    ]);
+
+    const profiles = profilesRes.profiles || [];
+    const engine = engineRes || {};
+    const traces = tracesRes.traces || [];
+    const sessions = sessionsRes.sessions || [];
+    const positions = positionsRes.positions || [];
+
+    const runningCount = profiles.filter(p => p.is_running).length;
+    const isEngineActive = engine.engine_running;
+
+    // Profiles HTML
+    let profilesHtml = '';
+    if (profiles.length === 0) {
+      profilesHtml = `
+        <div class="empty-state" style="grid-column: 1 / -1; padding: 40px; text-align: center; background: var(--color-surface); border: 1px dashed var(--color-border); border-radius: 8px;">
+          <div style="font-size: 32px; margin-bottom: 8px;">🚀</div>
+          <div style="font-weight: 700; color: var(--color-text-primary); margin-bottom: 4px;">No Trading Profiles Configured</div>
+          <div style="font-size: 12px; color: var(--color-text-muted); margin-bottom: 16px;">Create your first Autonomous Trading Profile using Strategy, AI Agent, or Hybrid mode.</div>
+          <button class="btn btn-primary" id="btn-create-profile-empty">Create Trading Profile</button>
+        </div>
+      `;
+    } else {
+      profilesHtml = profiles.map(p => {
+        let modeBadge = '';
+        let modeDetails = '';
+
+        if (p.decision_mode === 'strategy') {
+          modeBadge = `<span class="badge" style="background: rgba(69, 255, 202, 0.15); color: var(--color-primary); border: 1px solid var(--color-primary);">🧠 Strategy Template</span>`;
+          modeDetails = `<div>Template: <b>${p.strategy_id || 'hybrid_v2c'}</b></div>`;
+        } else if (p.decision_mode === 'ai_agent') {
+          modeBadge = `<span class="badge" style="background: rgba(214, 123, 255, 0.15); color: var(--color-accent-purple); border: 1px solid var(--color-accent-purple);">🤖 AI Agent</span>`;
+          modeDetails = `<div>Agent: <b>${p.agent_id || 'trader-paper'}</b></div>`;
+        } else {
+          modeBadge = `<span class="badge" style="background: rgba(255, 182, 217, 0.15); color: var(--color-accent-pink); border: 1px solid var(--color-accent-pink);">⚡ Hybrid (Filter + AI)</span>`;
+          modeDetails = `<div>Filter: <b>${p.strategy_id}</b> | Agent: <b>${p.agent_id}</b></div>`;
+        }
+
+        const isRunning = !!p.is_running;
+        const statusBadge = isRunning
+          ? `<span class="badge badge-bull" style="display: flex; align-items: center; gap: 4px;"><span class="health-dot ok"></span> RUNNING</span>`
+          : `<span class="badge" style="background: rgba(255, 255, 255, 0.05); color: var(--color-text-muted);">⏹ STOPPED</span>`;
+
+        return `
+          <div class="card" style="border: 1px solid ${isRunning ? 'var(--color-primary)' : 'var(--color-border)'};">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px;">
+              <div>
+                <div style="font-weight: 700; font-size: 14px; color: var(--color-text-primary); margin-bottom: 2px;">${p.name}</div>
+                <div style="font-size: 11px; color: var(--color-text-muted);">${p.symbol} • <b>${p.timeframe}</b></div>
+              </div>
+              <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
+                ${statusBadge}
+                ${modeBadge}
+              </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; font-size: 11px; background: rgba(0,0,0,0.25); padding: 8px; border-radius: 4px; margin-bottom: 12px;">
+              ${modeDetails}
+              <div>Risk Profile: <b style="text-transform: capitalize;">${p.risk_profile}</b></div>
+              <div>Execution: <b style="color: var(--color-secondary);">${p.execution_mode.toUpperCase()}</b></div>
+              <div>Max Pos: <b>${p.max_open_positions}</b> | Daily Max: <b>${p.max_trades_per_day}</b></div>
+              <div>SL: <b>${p.stop_loss_pct}%</b> | TP: <b>${p.take_profit_pct}%</b></div>
+              <div>Last Candle: <span style="font-family: monospace; font-size: 10px; color: var(--color-text-muted);">${p.last_processed_candle ? p.last_processed_candle.slice(-8) : 'Waiting'}</span></div>
+            </div>
+
+            <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+              ${isRunning
+                ? `
+                  <button class="btn btn-sm btn-warn btn-prof-pause" data-id="${p.profile_id}">⏸ Pause</button>
+                  <button class="btn btn-sm btn-danger btn-prof-stop" data-id="${p.profile_id}">⏹ Stop</button>
+                  <button class="btn btn-sm btn-prof-trigger" data-id="${p.profile_id}" title="Force immediate candle evaluation tick">⚡ Trigger Tick</button>
+                `
+                : `
+                  <button class="btn btn-sm btn-primary btn-prof-start" data-id="${p.profile_id}">▶️ Start</button>
+                  <button class="btn btn-sm btn-prof-trigger" data-id="${p.profile_id}" title="Run test evaluation tick">⚡ Test Tick</button>
+                `
+              }
+              <button class="btn btn-sm btn-prof-edit" data-id="${p.profile_id}">✏️ Edit</button>
+              <button class="btn btn-sm btn-prof-delete" data-id="${p.profile_id}" style="color: var(--color-danger);">🗑️</button>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // Traces HTML
+    let tracesRows = '';
+    if (traces.length === 0) {
+      tracesRows = `<tr><td colspan="7" style="text-align: center; color: var(--color-text-muted); padding: 20px;">No decision traces recorded yet. Active profiles will log traces on each candle close.</td></tr>`;
+    } else {
+      tracesRows = traces.slice(0, 15).map(t => {
+        let statusBadge = '<span class="badge">ABSTAINED</span>';
+        if (t.execution_status === 'EXECUTED') statusBadge = '<span class="badge badge-bull">EXECUTED</span>';
+        else if (t.execution_status === 'REJECTED') statusBadge = '<span class="badge badge-bear">REJECTED</span>';
+
+        return `
+          <tr>
+            <td style="font-size: 11px; color: var(--color-text-muted);">${t.decision_timestamp || 'N/A'}</td>
+            <td><b>${t.symbol}</b> <span style="font-size: 10px; color: var(--color-text-muted);">${t.timeframe}</span></td>
+            <td><span class="badge" style="text-transform: capitalize;">${t.decision_mode}</span></td>
+            <td>${t.strategy_signal || 'N/A'}</td>
+            <td>${t.ai_decision ? `${t.ai_decision} (${Math.round((t.ai_confidence || 0) * 100)}%)` : 'N/A'}</td>
+            <td>${statusBadge}</td>
+            <td>
+              <button class="btn btn-sm btn-inspect-trace" data-id="${t.trace_id}">Inspect</button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    const html = `
+      <div class="view-header">
+        <div>
+          <div class="view-title">
+            <span>🚀</span> Autonomous Trading Center
+            <span class="badge ${isEngineActive ? 'badge-bull' : 'badge-neutral'}">
+              <span class="health-dot ${isEngineActive ? 'ok' : 'warn'}"></span>
+              ${isEngineActive ? 'ENGINE ACTIVE' : 'ENGINE IDLE'}
+            </span>
+          </div>
+          <div class="view-subtitle">Continuous multi-profile autonomous trading across Strategy Templates, AI Agents, and Hybrid Mode.</div>
+        </div>
+        <div class="view-actions">
+          <button class="btn" id="btn-refresh-autonomous">🔄 Refresh</button>
+          <button class="btn btn-primary" id="btn-create-profile">+ Create Trading Profile</button>
+        </div>
+      </div>
+
+      <!-- Telemetry Metric Cards -->
+      <div class="metrics-grid" style="margin-bottom: 20px;">
+        <div class="stat-card">
+          <div class="stat-label">Running Profiles</div>
+          <div class="stat-value bull">${runningCount} <span style="font-size: 12px; color: var(--color-text-muted);">/ ${profiles.length} total</span></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Engine Worker State</div>
+          <div class="stat-value ${isEngineActive ? 'bull' : 'warn'}">${isEngineActive ? 'ONLINE' : 'STANDBY'}</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Protected Open Positions</div>
+          <div class="stat-value">${positions.length}</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Risk & Safety Gate</div>
+          <div class="stat-value bull">${this.systemStatus.safety_status || 'PAPER_SAFE'}</div>
+        </div>
+      </div>
+
+      <!-- Profiles Grid -->
+      <div style="margin-bottom: 24px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+          <h3 style="font-size: 14px; font-weight: 700; color: var(--color-text-primary); margin: 0;">Configured Trading Profiles</h3>
+          <span style="font-size: 11px; color: var(--color-text-muted);">Candle Boundary: Strictly Closed Bars (No Future Leakage)</span>
+        </div>
+        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 14px;">
+          ${profilesHtml}
+        </div>
+      </div>
+
+      <!-- Causal Decision Traces -->
+      <div class="card" style="margin-bottom: 24px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+          <div>
+            <div style="font-weight: 700; font-size: 13px; color: var(--color-text-primary);">Autonomous Decision Traces & Telemetry</div>
+            <div style="font-size: 11px; color: var(--color-text-muted);">Causal audit trail from Market Data → Strategy/AI → Policy → RiskEngine → Execution</div>
+          </div>
+        </div>
+        <div class="table-container">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Decision Timestamp</th>
+                <th>Pair / TF</th>
+                <th>Decision Mode</th>
+                <th>Strategy Signal</th>
+                <th>AI Decision</th>
+                <th>Outcome</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${tracesRows}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    `;
+
+    container.innerHTML = html;
+
+    // Attach Event Listeners
+    const btnCreate = document.getElementById('btn-create-profile');
+    if (btnCreate) btnCreate.addEventListener('click', () => Modals.showProfileModal(null, () => this.renderAutonomous()));
+
+    const btnCreateEmpty = document.getElementById('btn-create-profile-empty');
+    if (btnCreateEmpty) btnCreateEmpty.addEventListener('click', () => Modals.showProfileModal(null, () => this.renderAutonomous()));
+
+    const btnRefresh = document.getElementById('btn-refresh-autonomous');
+    if (btnRefresh) btnRefresh.addEventListener('click', () => this.renderAutonomous());
+
+    // Profile Actions: Start / Pause / Stop / Trigger / Edit / Delete
+    container.querySelectorAll('.btn-prof-start').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const id = btn.getAttribute('data-id');
+        try {
+          await API.startTradingProfile(id);
+          Toast.success("Trading profile activated and running in background!");
+          this.renderAutonomous();
+        } catch (err) {
+          Toast.error("Failed to start profile: " + err.message);
+        }
+      });
+    });
+
+    container.querySelectorAll('.btn-prof-pause').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const id = btn.getAttribute('data-id');
+        try {
+          await API.pauseTradingProfile(id);
+          Toast.info("Profile execution paused.");
+          this.renderAutonomous();
+        } catch (err) {
+          Toast.error("Failed to pause profile: " + err.message);
+        }
+      });
+    });
+
+    container.querySelectorAll('.btn-prof-stop').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const id = btn.getAttribute('data-id');
+        try {
+          await API.stopTradingProfile(id);
+          Toast.info("Profile stopped cleanly.");
+          this.renderAutonomous();
+        } catch (err) {
+          Toast.error("Failed to stop profile: " + err.message);
+        }
+      });
+    });
+
+    container.querySelectorAll('.btn-prof-trigger').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const id = btn.getAttribute('data-id');
+        Toast.info("Running evaluation tick on profile...");
+        try {
+          const res = await API.triggerProfileTick(id);
+          Toast.success(`Evaluation outcome: ${res.status || 'OK'}`);
+          this.renderAutonomous();
+        } catch (err) {
+          Toast.error("Evaluation tick error: " + err.message);
+        }
+      });
+    });
+
+    container.querySelectorAll('.btn-prof-edit').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const id = btn.getAttribute('data-id');
+        const p = profiles.find(item => item.profile_id === id);
+        if (p) Modals.showProfileModal(p, () => this.renderAutonomous());
+      });
+    });
+
+    container.querySelectorAll('.btn-prof-delete').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const id = btn.getAttribute('data-id');
+        if (confirm("Are you sure you want to delete this trading profile?")) {
+          try {
+            await API.deleteTradingProfile(id);
+            Toast.success("Profile deleted.");
+            this.renderAutonomous();
+          } catch (err) {
+            Toast.error("Failed to delete profile: " + err.message);
+          }
+        }
+      });
+    });
+
+    // Trace Inspection Modal
+    container.querySelectorAll('.btn-inspect-trace').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const id = btn.getAttribute('data-id');
+        const trace = traces.find(t => t.trace_id === id);
+        if (trace) Modals.showAutonomousTraceModal(trace);
+      });
+    });
   }
 
   // -------------------------------------------------------------------------

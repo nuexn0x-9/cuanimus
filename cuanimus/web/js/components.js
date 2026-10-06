@@ -296,6 +296,311 @@ const Modals = {
         Toast.error("Failed to apply configuration: " + err.message);
       }
     });
+  },
+
+  // Trading Profile Creator / Editor Modal
+  async showProfileModal(profile = null, onSaved = null) {
+    const isEdit = !!profile;
+    const p = profile || {
+      profile_id: '',
+      name: '',
+      symbol: 'ADA/USDT:USDT',
+      timeframe: '15m',
+      decision_mode: 'strategy',
+      strategy_id: 'hybrid_v2c',
+      agent_id: 'trader-paper',
+      risk_profile: 'conservative',
+      execution_mode: 'paper',
+      max_open_positions: 1,
+      max_trades_per_day: 10,
+      stop_loss_pct: 1.5,
+      take_profit_pct: 3.0,
+      enabled: true
+    };
+
+    let strategies = ['hybrid_v2c', 'pullback_v2a', 'structure_v2b', 'baseline_v0', 'atr_v1'];
+    let agents = ['trader-paper', 'advisory-default', 'supervisor-admin'];
+    let pairs = ['ADA/USDT:USDT', 'BTC/USDT:USDT', 'ETH/USDT:USDT', 'SOL/USDT:USDT', 'XRP/USDT:USDT', 'BNB/USDT:USDT'];
+
+    try {
+      const [stratRes, agentRes, pairRes] = await Promise.all([
+        API.getStrategies().catch(() => ({ strategies: [] })),
+        API.getAgents().catch(() => ({ agents: [] })),
+        API.getPairs().catch(() => ({ pairs: [] }))
+      ]);
+      if (stratRes.strategies && stratRes.strategies.length) strategies = stratRes.strategies.map(s => s.strategy_id || s.id);
+      if (agentRes.agents && agentRes.agents.length) agents = agentRes.agents.map(a => a.agent_id);
+      if (pairRes.pairs && pairRes.pairs.length) pairs = pairRes.pairs.map(pr => pr.internal || pr.symbol || pr);
+    } catch (_) {}
+
+    const stratOptions = strategies.map(s => `<option value="${s}" ${s === p.strategy_id ? 'selected' : ''}>${s}</option>`).join('');
+    const agentOptions = agents.map(a => `<option value="${a}" ${a === p.agent_id ? 'selected' : ''}>${a}</option>`).join('');
+    const pairOptions = pairs.map(pr => `<option value="${pr}" ${pr === p.symbol ? 'selected' : ''}>${pr}</option>`).join('');
+
+    const modalHtml = `
+      <div id="modal-trading-profile" class="modal-overlay active">
+        <div class="modal-box" style="max-width: 620px;">
+          <div class="modal-header">
+            <div class="modal-title" style="display: flex; align-items: center; gap: 8px;">
+              <span>🚀</span> ${isEdit ? 'EDIT TRADING PROFILE' : 'CREATE TRADING PROFILE'}
+            </div>
+            <button class="modal-close" onclick="Modals.close('modal-trading-profile')">✕</button>
+          </div>
+          <div class="modal-body">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+              <div>
+                <label style="display: block; font-size: 11px; color: var(--color-text-muted); margin-bottom: 4px;">Profile Name</label>
+                <input type="text" id="prof-input-name" class="cmd-input" style="border: 1px solid var(--color-border); border-radius: 4px; padding: 8px 12px;" value="${p.name || ''}" placeholder="e.g. ADA-15M-HYBRID">
+              </div>
+              <div>
+                <label style="display: block; font-size: 11px; color: var(--color-text-muted); margin-bottom: 4px;">Trading Pair</label>
+                <select id="prof-input-symbol" class="cmd-input" style="border: 1px solid var(--color-border); border-radius: 4px; padding: 8px 12px;">
+                  ${pairOptions}
+                </select>
+              </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 14px;">
+              <div>
+                <label style="display: block; font-size: 11px; color: var(--color-text-muted); margin-bottom: 4px;">Timeframe</label>
+                <select id="prof-input-timeframe" class="cmd-input" style="border: 1px solid var(--color-border); border-radius: 4px; padding: 8px 12px;">
+                  <option value="5m" ${p.timeframe === '5m' ? 'selected' : ''}>5m (Scalp)</option>
+                  <option value="15m" ${p.timeframe === '15m' ? 'selected' : ''}>15m (Intraday Standard)</option>
+                  <option value="1h" ${p.timeframe === '1h' ? 'selected' : ''}>1h (Swing Context)</option>
+                  <option value="4h" ${p.timeframe === '4h' ? 'selected' : ''}>4h (Macro Trend)</option>
+                </select>
+              </div>
+              <div>
+                <label style="display: block; font-size: 11px; color: var(--color-text-muted); margin-bottom: 4px;">Decision Mode</label>
+                <select id="prof-input-decision-mode" class="cmd-input" style="border: 1px solid var(--color-border); border-radius: 4px; padding: 8px 12px;">
+                  <option value="strategy" ${p.decision_mode === 'strategy' ? 'selected' : ''}>Mode A: Strategy Template</option>
+                  <option value="ai_agent" ${p.decision_mode === 'ai_agent' ? 'selected' : ''}>Mode B: AI Agent Autotrade</option>
+                  <option value="hybrid" ${p.decision_mode === 'hybrid' ? 'selected' : ''}>Mode C: Hybrid (Strategy Filter + AI)</option>
+                </select>
+              </div>
+            </div>
+
+            <div id="prof-field-strategy" style="margin-bottom: 12px; background: rgba(69, 255, 202, 0.05); border: 1px solid rgba(69, 255, 202, 0.2); padding: 10px; border-radius: 6px;">
+              <label style="display: block; font-size: 11px; color: var(--color-primary); margin-bottom: 4px; font-weight: 600;">Strategy Template (Quantitative Entry Rules)</label>
+              <select id="prof-input-strategy" class="cmd-input" style="border: 1px solid var(--color-border); border-radius: 4px; padding: 8px 12px;">
+                ${stratOptions}
+              </select>
+            </div>
+
+            <div id="prof-field-agent" style="margin-bottom: 12px; background: rgba(214, 123, 255, 0.05); border: 1px solid rgba(214, 123, 255, 0.2); padding: 10px; border-radius: 6px;">
+              <label style="display: block; font-size: 11px; color: var(--color-accent-purple); margin-bottom: 4px; font-weight: 600;">AI Agent (Agent Gateway & Structured Intent)</label>
+              <select id="prof-input-agent" class="cmd-input" style="border: 1px solid var(--color-border); border-radius: 4px; padding: 8px 12px;">
+                ${agentOptions}
+              </select>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+              <div>
+                <label style="display: block; font-size: 11px; color: var(--color-text-muted); margin-bottom: 4px;">Risk Engine Profile</label>
+                <select id="prof-input-risk" class="cmd-input" style="border: 1px solid var(--color-border); border-radius: 4px; padding: 8px 12px;">
+                  <option value="conservative" ${p.risk_profile === 'conservative' ? 'selected' : ''}>Conservative (0.5% risk, max 3x)</option>
+                  <option value="balanced" ${p.risk_profile === 'balanced' ? 'selected' : ''}>Balanced (1.0% risk, max 5x)</option>
+                  <option value="aggressive" ${p.risk_profile === 'aggressive' ? 'selected' : ''}>Aggressive (1.5% risk, max 7x)</option>
+                </select>
+              </div>
+              <div>
+                <label style="display: block; font-size: 11px; color: var(--color-text-muted); margin-bottom: 4px;">Execution Mode</label>
+                <select id="prof-input-exec" class="cmd-input" style="border: 1px solid var(--color-border); border-radius: 4px; padding: 8px 12px;">
+                  <option value="paper" ${p.execution_mode === 'paper' ? 'selected' : ''}>PAPER (Safe Simulation)</option>
+                  <option value="testnet" ${p.execution_mode === 'testnet' ? 'selected' : ''}>TESTNET (Binance Futures Testnet)</option>
+                </select>
+              </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 8px; margin-bottom: 12px;">
+              <div>
+                <label style="display: block; font-size: 11px; color: var(--color-text-muted); margin-bottom: 4px;">Max Pos</label>
+                <input type="number" id="prof-input-max-pos" class="cmd-input" style="border: 1px solid var(--color-border); border-radius: 4px; padding: 6px 8px;" value="${p.max_open_positions || 1}" min="1" max="5">
+              </div>
+              <div>
+                <label style="display: block; font-size: 11px; color: var(--color-text-muted); margin-bottom: 4px;">Max Trades/Day</label>
+                <input type="number" id="prof-input-max-trades" class="cmd-input" style="border: 1px solid var(--color-border); border-radius: 4px; padding: 6px 8px;" value="${p.max_trades_per_day || 10}" min="1" max="50">
+              </div>
+              <div>
+                <label style="display: block; font-size: 11px; color: var(--color-text-muted); margin-bottom: 4px;">Stop Loss %</label>
+                <input type="number" step="0.1" id="prof-input-sl" class="cmd-input" style="border: 1px solid var(--color-border); border-radius: 4px; padding: 6px 8px;" value="${p.stop_loss_pct || 1.5}">
+              </div>
+              <div>
+                <label style="display: block; font-size: 11px; color: var(--color-text-muted); margin-bottom: 4px;">Take Profit %</label>
+                <input type="number" step="0.1" id="prof-input-tp" class="cmd-input" style="border: 1px solid var(--color-border); border-radius: 4px; padding: 6px 8px;" value="${p.take_profit_pct || 3.0}">
+              </div>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button class="btn" onclick="Modals.close('modal-trading-profile')">Cancel</button>
+            <button class="btn btn-primary" id="btn-save-trading-profile">
+              ${isEdit ? 'Save Changes' : 'Create Profile'}
+            </button>
+          </div>
+        </div>
+      </div>
+    `;
+
+    const old = document.getElementById('modal-trading-profile');
+    if (old) old.remove();
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+    const modeSelect = document.getElementById('prof-input-decision-mode');
+    const stratField = document.getElementById('prof-field-strategy');
+    const agentField = document.getElementById('prof-field-agent');
+
+    const updateVisibility = () => {
+      const mode = modeSelect.value;
+      if (mode === 'strategy') {
+        stratField.style.display = 'block';
+        agentField.style.display = 'none';
+      } else if (mode === 'ai_agent') {
+        stratField.style.display = 'none';
+        agentField.style.display = 'block';
+      } else {
+        stratField.style.display = 'block';
+        agentField.style.display = 'block';
+      }
+    };
+    modeSelect.addEventListener('change', updateVisibility);
+    updateVisibility();
+
+    document.getElementById('btn-save-trading-profile').addEventListener('click', async () => {
+      const name = document.getElementById('prof-input-name').value.trim();
+      if (!name) {
+        Toast.warn("Please enter a profile name");
+        return;
+      }
+      const data = {
+        name,
+        symbol: document.getElementById('prof-input-symbol').value,
+        timeframe: document.getElementById('prof-input-timeframe').value,
+        decision_mode: document.getElementById('prof-input-decision-mode').value,
+        strategy_id: document.getElementById('prof-input-strategy').value,
+        agent_id: document.getElementById('prof-input-agent').value,
+        risk_profile: document.getElementById('prof-input-risk').value,
+        execution_mode: document.getElementById('prof-input-exec').value,
+        max_open_positions: parseInt(document.getElementById('prof-input-max-pos').value) || 1,
+        max_trades_per_day: parseInt(document.getElementById('prof-input-max-trades').value) || 10,
+        stop_loss_pct: parseFloat(document.getElementById('prof-input-sl').value) || 1.5,
+        take_profit_pct: parseFloat(document.getElementById('prof-input-tp').value) || 3.0,
+      };
+
+      try {
+        if (isEdit && p.profile_id) {
+          await API.updateTradingProfile(p.profile_id, data);
+          Toast.success(`Profile '${name}' updated successfully!`);
+        } else {
+          await API.createTradingProfile(data);
+          Toast.success(`Trading profile '${name}' created!`);
+        }
+        Modals.close('modal-trading-profile');
+        if (onSaved) onSaved();
+      } catch (err) {
+        Toast.error("Failed to save profile: " + err.message);
+      }
+    });
+  },
+
+  // Autonomous Decision Trace Modal
+  showAutonomousTraceModal(trace) {
+    if (!trace) return;
+    const raw = trace.raw_trace || {};
+    const modalHtml = `
+      <div id="modal-auto-trace" class="modal-overlay active">
+        <div class="modal-box" style="max-width: 660px;">
+          <div class="modal-header">
+            <div class="modal-title" style="display: flex; align-items: center; gap: 8px;">
+              <span>🔍</span> AUTONOMOUS DECISION TRACE: ${trace.symbol} (${trace.timeframe})
+            </div>
+            <button class="modal-close" onclick="Modals.close('modal-auto-trace')">✕</button>
+          </div>
+          <div class="modal-body">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 11px; margin-bottom: 12px; background: rgba(0,0,0,0.2); padding: 8px; border-radius: 4px;">
+              <div>Trace ID: <b>${trace.trace_id}</b></div>
+              <div>Timestamp: <b>${trace.decision_timestamp}</b></div>
+              <div>Decision Mode: <b style="text-transform: uppercase;">${trace.decision_mode}</b></div>
+              <div>Market Price: <b>${trace.market_price}</b></div>
+            </div>
+
+            <div class="timeline">
+              <div class="timeline-item">
+                <div class="timeline-dot pass"></div>
+                <div class="timeline-content">
+                  <div class="timeline-title">
+                    <span>1. Market Data Boundary</span>
+                    <span class="badge badge-bull">CLOSED BAR</span>
+                  </div>
+                  <div class="timeline-detail">Candle: ${trace.candle_timestamp} on Binance Futures. Price: ${trace.market_price}. Causal evaluation boundary verified.</div>
+                </div>
+              </div>
+
+              <div class="timeline-item">
+                <div class="timeline-dot ${trace.strategy_signal === 'HOLD' || trace.strategy_signal === 'N/A' ? 'warn' : 'pass'}"></div>
+                <div class="timeline-content">
+                  <div class="timeline-title">
+                    <span>2. Strategy Template Signal</span>
+                    <span class="badge ${trace.strategy_signal === 'LONG' || trace.strategy_signal === 'SHORT' ? 'badge-bull' : 'badge-neutral'}">${trace.strategy_signal}</span>
+                  </div>
+                  <div class="timeline-detail">${trace.strategy_signal === 'N/A' ? 'Not applicable for AI-only mode.' : 'Evaluated via Strategy Template.'}</div>
+                </div>
+              </div>
+
+              <div class="timeline-item">
+                <div class="timeline-dot ${trace.ai_decision === 'HOLD' || trace.ai_decision === 'N/A' ? 'warn' : 'pass'}"></div>
+                <div class="timeline-content">
+                  <div class="timeline-title">
+                    <span>3. AI Agent Decision</span>
+                    <span class="badge ${trace.ai_decision === 'LONG' || trace.ai_decision === 'APPROVE' ? 'badge-bull' : 'badge-neutral'}">${trace.ai_decision} (${Math.round((trace.ai_confidence || 0) * 100)}%)</span>
+                  </div>
+                  <div class="timeline-detail">${trace.ai_decision === 'N/A' ? 'Not applicable for Strategy-only mode.' : 'Agent evaluated market context and produced structured intent.'}</div>
+                </div>
+              </div>
+
+              <div class="timeline-item">
+                <div class="timeline-dot ${trace.policy_result === 'APPROVED' ? 'pass' : (trace.policy_result === 'VETOED' ? 'veto' : 'warn')}"></div>
+                <div class="timeline-content">
+                  <div class="timeline-title">
+                    <span>4. Agent Policy Guard</span>
+                    <span class="badge ${trace.policy_result === 'APPROVED' ? 'badge-bull' : (trace.policy_result === 'VETOED' ? 'badge-bear' : 'badge-neutral')}">${trace.policy_result}</span>
+                  </div>
+                  <div class="timeline-detail">Environment, risk bounds, and mandatory SL verification.</div>
+                </div>
+              </div>
+
+              <div class="timeline-item">
+                <div class="timeline-dot ${trace.risk_result === 'APPROVED' ? 'pass' : (trace.risk_result === 'VETOED' ? 'veto' : 'warn')}"></div>
+                <div class="timeline-content">
+                  <div class="timeline-title">
+                    <span>5. Risk Engine (FINAL AUTHORITY)</span>
+                    <span class="badge ${trace.risk_result === 'APPROVED' ? 'badge-bull' : (trace.risk_result === 'VETOED' ? 'badge-bear' : 'badge-neutral')}">${trace.risk_result}</span>
+                  </div>
+                  <div class="timeline-detail">Emergency stop clearance, portfolio drawdown limits, and position sizing.</div>
+                </div>
+              </div>
+
+              <div class="timeline-item">
+                <div class="timeline-dot ${trace.execution_status === 'EXECUTED' ? 'pass' : 'veto'}"></div>
+                <div class="timeline-content">
+                  <div class="timeline-title">
+                    <span>6. Execution Coordinator</span>
+                    <span class="badge ${trace.execution_status === 'EXECUTED' ? 'badge-bull' : 'badge-bear'}">${trace.execution_status}</span>
+                  </div>
+                  <div class="timeline-detail">Order ID: ${trace.order_id || 'None'}. Status: ${trace.execution_status}.</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button class="btn btn-primary" onclick="Modals.close('modal-auto-trace')">Close</button>
+          </div>
+        </div>
+      </div>
+    `;
+
+    const old = document.getElementById('modal-auto-trace');
+    if (old) old.remove();
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
   }
 };
 
@@ -307,9 +612,11 @@ const CommandPalette = {
     { title: "Navigate: Markets & Regimes", action: () => window.app.navigate('markets') },
     { title: "Navigate: Research & Backtesting Lab", action: () => window.app.navigate('research') },
     { title: "Navigate: Risk Center & Limits", action: () => window.app.navigate('risk') },
+    { title: "Navigate: Autonomous Trading Engine", action: () => window.app.navigate('autonomous') },
     { title: "Navigate: AI Agent Center", action: () => window.app.navigate('agents') },
     { title: "Navigate: Configuration Center", action: () => window.app.navigate('config') },
     { title: "Navigate: Settings & Telegram", action: () => window.app.navigate('settings') },
+    { title: "Action: Create Autonomous Trading Profile", action: () => Modals.showProfileModal() },
     { title: "Action: Ask AI Copilot to Configure", action: () => Modals.showAiCopilotModal() },
     { title: "Action: Run Diagnostic Doctor", action: () => window.app.runDoctorDiagnostics() },
     { title: "Action: Send Telegram Test Alert", action: () => window.app.sendTelegramTest() },

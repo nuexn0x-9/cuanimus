@@ -76,6 +76,7 @@ STRATEGY_CATEGORY_KEYBOARD = {
             {"text": "⚙️ Katalog Strategi", "callback_data": "view:strategy"},
         ],
         [
+            {"text": "🚀 Autonomous Engine", "callback_data": "view:auto_engine"},
             {"text": "◀️ Kembali ke Menu Utama", "callback_data": "menu:root"},
         ],
     ]
@@ -455,6 +456,7 @@ class TelegramBotListener:
             {"command": "risk", "description": "Parameter & status risk engine"},
             {"command": "agents", "description": "Status AI Agent & MCP tools"},
             {"command": "db", "description": "Status database SQLite / PostgreSQL"},
+            {"command": "auto", "description": "Status Autonomous Trading Engine & Profil"},
             {"command": "emergency_stop", "description": "Aktifkan Kill Switch darurat"},
             {"command": "reset_stop", "description": "Reset Kill Switch darurat"},
         ]
@@ -662,6 +664,13 @@ class TelegramBotListener:
                 chat_id=sender_id,
                 reply_markup=self._make_nav_markup("view:db", "menu:system"),
             )
+        elif data == "view:auto_engine":
+            self.notifier.edit_message_text(
+                text=self._format_auto_engine(),
+                message_id=message_id,
+                chat_id=sender_id,
+                reply_markup=self._make_nav_markup("view:auto_engine", "menu:strategy"),
+            )
         elif data == "action:kill":
             self._execute_inline_emergency_stop(message_id, sender_id)
         elif data == "action:reset_stop":
@@ -792,11 +801,15 @@ class TelegramBotListener:
             target = parts[1] if len(parts) > 1 else "sqlite"
             self._handle_db_switch(target, sender_id)
 
-        # 16. Emergency Kill Switch
+        # 16. Autonomous Trading Engine
+        elif cmd in ("/auto", "/autonomous", "auto", "autonomous", "🚀 autonomous", "🚀 auto engine", "auto trade"):
+            self._handle_auto_engine(sender_id)
+
+        # 17. Emergency Kill Switch
         elif cmd in ("/emergency_stop", "/kill", "🛑 kill switch", "kill switch", "kill"):
             self._handle_emergency_stop(sender_id)
 
-        # 17. Reset Emergency Stop
+        # 18. Reset Emergency Stop
         elif cmd in ("/reset_stop", "/reset", "🔄 reset stop", "reset stop", "reset"):
             self._handle_reset_stop(sender_id)
 
@@ -1143,6 +1156,47 @@ class TelegramBotListener:
         except Exception as e:
             return f"❌ Gagal mengambil status database: {e}"
 
+    def _format_auto_engine(self) -> str:
+        if not self.api:
+            return "❌ Layanan Control Plane belum siap."
+        try:
+            status = self.api.get_autonomous_engine_status()
+            eng_running = status.get("engine_running", False)
+            eng_badge = "🟢 AKTIF" if eng_running else "⚪ NONAKTIF"
+            emg_badge = "🚨 AKTIF" if status.get("emergency_stop_active") else "🛡️ NORMAL"
+            active_cnt = status.get("active_profiles_count", 0)
+            total_cnt = status.get("total_profiles_count", 0)
+            open_pos = status.get("open_positions_count", 0)
+            running_profiles = status.get("running_profiles", [])
+
+            lines = [
+                "🚀 <b>AUTONOMOUS TRADING ENGINE</b>",
+                "━━━━━━━━━━━━━━━━━━━━━━",
+                f"• <b>Engine Loop:</b> {eng_badge}",
+                f"• <b>Emergency Stop:</b> {emg_badge}",
+                f"• <b>Profil Aktif:</b> <code>{active_cnt} / {total_cnt}</code>",
+                f"• <b>Posisi Terbuka:</b> <code>{open_pos}</code>",
+                "",
+                "📋 <b>Profil Trading Berjalan:</b>"
+            ]
+
+            if running_profiles:
+                for p in running_profiles[:5]:
+                    name = p.get("name", "Unknown")
+                    pair = p.get("symbol", "-")
+                    tf = p.get("timeframe", "-")
+                    mode = p.get("decision_mode", "-").upper()
+                    exec_mode = p.get("execution_mode", "-").upper()
+                    lines.append(f"• <b>{name}</b> ({pair} • {tf})\n  Mode: <code>{mode}</code> | Exec: <code>{exec_mode}</code>")
+            else:
+                lines.append("<i>Belum ada profil trading yang sedang berjalan.</i>\n<i>Aktifkan profil melalui Web UI Control Center.</i>")
+
+            lines.append("")
+            lines.append("💡 <i>Mode: Strategy (A), AI Agent (B), Hybrid (C).</i>")
+            return "\n".join(lines)
+        except Exception as e:
+            return f"❌ Gagal mengambil status Autonomous Engine: {e}"
+
     # -------------------------------------------------------------------------
     # INLINE CALLBACK EDIT HELPERS
     # -------------------------------------------------------------------------
@@ -1395,3 +1449,7 @@ class TelegramBotListener:
             self.notifier.send_message(msg, reply_markup=markup, chat_id=sender_id)
         except Exception as e:
             self.notifier.send_message(f"❌ Gagal mereset Emergency Stop: {e}", reply_markup=INLINE_BACK_HOME, chat_id=sender_id)
+
+    def _handle_auto_engine(self, sender_id: str):
+        text = self._format_auto_engine()
+        self.notifier.send_message(text, reply_markup=self._make_nav_markup("view:auto_engine", "menu:strategy"), chat_id=sender_id)

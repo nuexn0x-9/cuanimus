@@ -161,6 +161,33 @@ class CuanimusHttpHandler(BaseHTTPRequestHandler):
 
         self._send_json(404, {"error": "Not Found", "path": path})
 
+    def do_PUT(self):
+        parsed = urlparse(self.path)
+        path = parsed.path.rstrip("/")
+        body = self._read_json_body()
+        if path.startswith("/api/trading/profiles/"):
+            prof_id = path.replace("/api/trading/profiles/", "").split("/")[0]
+            try:
+                res = self.api.update_trading_profile(prof_id, body)
+                self._send_json(200, res)
+            except Exception as e:
+                self._send_json(400, {"error": str(e)})
+            return
+        self._send_json(404, {"error": "Not Found", "path": path})
+
+    def do_DELETE(self):
+        parsed = urlparse(self.path)
+        path = parsed.path.rstrip("/")
+        if path.startswith("/api/trading/profiles/"):
+            prof_id = path.replace("/api/trading/profiles/", "").split("/")[0]
+            try:
+                res = self.api.delete_trading_profile(prof_id)
+                self._send_json(200, res)
+            except Exception as e:
+                self._send_json(400, {"error": str(e)})
+            return
+        self._send_json(404, {"error": "Not Found", "path": path})
+
     def _handle_mcp_post(self, body: Dict[str, Any]):
         """Executes authenticated MCP JSON-RPC messages with token authentication and rate limits."""
         auth_header = self.headers.get("Authorization", "")
@@ -302,6 +329,22 @@ class CuanimusHttpHandler(BaseHTTPRequestHandler):
                 self._send_json(200, self.api.get_database_status())
             elif path == "/api/settings":
                 self._send_json(200, self.api.get_settings())
+            elif path == "/api/trading/profiles":
+                self._send_json(200, {"profiles": self.api.list_trading_profiles()})
+            elif path.startswith("/api/trading/profiles/"):
+                prof_id = path.replace("/api/trading/profiles/", "").strip("/")
+                prof = self.api.get_trading_profile(prof_id)
+                if prof:
+                    self._send_json(200, prof)
+                else:
+                    self._send_json(404, {"error": f"Profile '{prof_id}' not found"})
+            elif path == "/api/trading/engine/status":
+                self._send_json(200, self.api.get_autonomous_engine_status())
+            elif path == "/api/trading/engine/sessions":
+                self._send_json(200, {"sessions": self.api.list_autonomous_sessions()})
+            elif path == "/api/trading/engine/traces":
+                prof_id = query.get("profile_id", [None])[0]
+                self._send_json(200, {"traces": self.api.list_autonomous_traces(profile_id=prof_id)})
             elif path == "/api/events/stream":
                 self._handle_sse_stream()
             else:
@@ -392,6 +435,26 @@ class CuanimusHttpHandler(BaseHTTPRequestHandler):
                 self._send_json(200, self.api.switch_database_backend(target, url))
             elif path == "/api/database/migrate":
                 self._send_json(200, self.api.migrate_database())
+            elif path == "/api/trading/profiles":
+                self._send_json(201, self.api.create_trading_profile(body))
+            elif path.startswith("/api/trading/profiles/") and path.endswith("/start"):
+                prof_id = path.replace("/api/trading/profiles/", "").replace("/start", "")
+                self._send_json(200, self.api.start_trading_profile(prof_id))
+            elif path.startswith("/api/trading/profiles/") and path.endswith("/pause"):
+                prof_id = path.replace("/api/trading/profiles/", "").replace("/pause", "")
+                self._send_json(200, self.api.pause_trading_profile(prof_id))
+            elif path.startswith("/api/trading/profiles/") and path.endswith("/stop"):
+                prof_id = path.replace("/api/trading/profiles/", "").replace("/stop", "")
+                self._send_json(200, self.api.stop_trading_profile(prof_id))
+            elif path.startswith("/api/trading/profiles/") and path.endswith("/trigger"):
+                prof_id = path.replace("/api/trading/profiles/", "").replace("/trigger", "")
+                self._send_json(200, self.api.trigger_profile_tick(prof_id))
+            elif path.startswith("/api/trading/profiles/") and path.endswith("/delete"):
+                prof_id = path.replace("/api/trading/profiles/", "").replace("/delete", "")
+                self._send_json(200, self.api.delete_trading_profile(prof_id))
+            elif path.startswith("/api/trading/profiles/") and (path.endswith("/update") or len(path.split("/")) == 5):
+                prof_id = path.replace("/api/trading/profiles/", "").replace("/update", "")
+                self._send_json(200, self.api.update_trading_profile(prof_id, body))
             else:
                 self._send_json(404, {"error": "API route not found", "path": path})
         except Exception as e:
