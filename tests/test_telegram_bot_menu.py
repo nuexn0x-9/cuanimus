@@ -16,16 +16,32 @@ class TestTelegramInteractiveMenu(unittest.TestCase):
         self.listener = TelegramBotListener(notifier=self.notifier, api_service=self.api)
 
     def test_main_menu_keyboard_structure(self):
-        self.assertIn("keyboard", MAIN_MENU_KEYBOARD)
-        rows = MAIN_MENU_KEYBOARD["keyboard"]
+        self.assertIn("inline_keyboard", MAIN_MENU_KEYBOARD)
+        rows = MAIN_MENU_KEYBOARD["inline_keyboard"]
         self.assertGreaterEqual(len(rows), 4)
         btn_texts = [btn["text"] for row in rows for btn in row]
-        self.assertIn("📊 Status", btn_texts)
-        self.assertIn("📈 Market", btn_texts)
-        self.assertIn("💼 Positions", btn_texts)
-        self.assertIn("⚡ Signal V2A", btn_texts)
-        self.assertIn("🛑 Kill Switch", btn_texts)
-        self.assertIn("🔄 Reset Stop", btn_texts)
+        self.assertTrue(any("Portofolio & Pasar" in t for t in btn_texts))
+        self.assertTrue(any("Sinyal & Strategi" in t for t in btn_texts))
+        self.assertTrue(any("AI Copilot" in t for t in btn_texts))
+        self.assertTrue(any("Risiko" in t for t in btn_texts))
+        self.assertTrue(any("KILL SWITCH" in t for t in btn_texts))
+
+    @patch.object(TelegramNotifier, "edit_message_text")
+    def test_route_dropdown_callbacks(self, mock_edit):
+        mock_edit.return_value = {"success": True}
+        # Test expanding categories and views
+        self.listener._route_callback("menu:market", 100, self.listener.chat_id)
+        self.assertTrue(mock_edit.called)
+        self.assertIn("Kategori: Portofolio & Pasar", mock_edit.call_args[1]["text"])
+
+        self.listener._route_callback("view:balance", 100, self.listener.chat_id)
+        self.assertIn("SALDO & WALLET CUANIMUS", mock_edit.call_args[1]["text"])
+
+        self.listener._route_callback("view:status", 100, self.listener.chat_id)
+        self.assertIn("STATUS PLATFORM CUANIMUS", mock_edit.call_args[1]["text"])
+
+        self.listener._route_callback("menu:root", 100, self.listener.chat_id)
+        self.assertIn("CUANIMUS Mobile Control Center", mock_edit.call_args[1]["text"])
 
     @patch.object(TelegramNotifier, "send_message")
     def test_route_status_command(self, mock_send):

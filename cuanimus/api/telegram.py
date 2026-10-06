@@ -24,20 +24,115 @@ from cuanimus.config.env import load_env_file
 
 logger = logging.getLogger(__name__)
 
-# Persistent Quick-Action Keyboard for mobile phone UI
-MAIN_MENU_KEYBOARD = {
-    "keyboard": [
-        [{"text": "📊 Status"}, {"text": "💰 Saldo"}],
-        [{"text": "📈 Market"}, {"text": "💼 Positions"}],
-        [{"text": "📅 Kinerja"}, {"text": "📋 Orders"}],
-        [{"text": "⚡ Signal V2A"}, {"text": "🤖 AI & Agents"}],
-        [{"text": "⚙️ Strategi"}, {"text": "🗄️ Database"}],
-        [{"text": "🛑 Kill Switch"}, {"text": "🔄 Reset Stop"}],
-        [{"text": "ℹ️ Help & Menu"}],
-    ],
-    "resize_keyboard": True,
-    "is_persistent": True,
+# Compact Dropdown & Category Keyboards (InlineKeyboardMarkup prevents filling up phone screen)
+MAIN_DROPDOWN_KEYBOARD = {
+    "inline_keyboard": [
+        [
+            {"text": "📊 Portofolio & Pasar ▾", "callback_data": "menu:market"},
+            {"text": "⚡ Sinyal & Strategi ▾", "callback_data": "menu:strategy"},
+        ],
+        [
+            {"text": "🤖 AI Copilot & Agent ▾", "callback_data": "menu:ai"},
+            {"text": "🛡️ Risiko & Proteksi ▾", "callback_data": "menu:risk"},
+        ],
+        [
+            {"text": "🗄️ Database & Sistem ▾", "callback_data": "menu:system"},
+            {"text": "ℹ️ Panduan Singkat", "callback_data": "menu:help"},
+        ],
+        [
+            {"text": "🛑 EMERGENCY KILL SWITCH", "callback_data": "action:kill"},
+        ],
+    ]
 }
+
+MARKET_CATEGORY_KEYBOARD = {
+    "inline_keyboard": [
+        [
+            {"text": "📊 Status Platform", "callback_data": "view:status"},
+            {"text": "💰 Saldo & Equity", "callback_data": "view:balance"},
+        ],
+        [
+            {"text": "📈 Live Watchlist", "callback_data": "view:market"},
+            {"text": "💼 Posisi Terbuka", "callback_data": "view:positions"},
+        ],
+        [
+            {"text": "📅 Kinerja Harian", "callback_data": "view:daily"},
+            {"text": "📋 Riwayat Order", "callback_data": "view:orders"},
+        ],
+        [
+            {"text": "◀️ Kembali ke Menu Utama", "callback_data": "menu:root"},
+        ],
+    ]
+}
+
+STRATEGY_CATEGORY_KEYBOARD = {
+    "inline_keyboard": [
+        [
+            {"text": "⚡ Sinyal ETH/USDT", "callback_data": "view:signal:ETH"},
+            {"text": "⚡ Sinyal BTC/USDT", "callback_data": "view:signal:BTC"},
+        ],
+        [
+            {"text": "⚡ Sinyal SOL/USDT", "callback_data": "view:signal:SOL"},
+            {"text": "⚙️ Katalog Strategi", "callback_data": "view:strategy"},
+        ],
+        [
+            {"text": "◀️ Kembali ke Menu Utama", "callback_data": "menu:root"},
+        ],
+    ]
+}
+
+AI_CATEGORY_KEYBOARD = {
+    "inline_keyboard": [
+        [
+            {"text": "🤖 Status AI & MCP Tools", "callback_data": "view:agents"},
+        ],
+        [
+            {"text": "🧠 Panduan Tanya Copilot", "callback_data": "view:ai_help"},
+        ],
+        [
+            {"text": "◀️ Kembali ke Menu Utama", "callback_data": "menu:root"},
+        ],
+    ]
+}
+
+RISK_CATEGORY_KEYBOARD = {
+    "inline_keyboard": [
+        [
+            {"text": "🛡️ Status Risk Engine", "callback_data": "view:risk"},
+        ],
+        [
+            {"text": "🛑 Aktifkan Kill Switch", "callback_data": "action:kill"},
+            {"text": "🔄 Reset Kill Switch", "callback_data": "action:reset_stop"},
+        ],
+        [
+            {"text": "◀️ Kembali ke Menu Utama", "callback_data": "menu:root"},
+        ],
+    ]
+}
+
+SYSTEM_CATEGORY_KEYBOARD = {
+    "inline_keyboard": [
+        [
+            {"text": "🗄️ Status Database", "callback_data": "view:db"},
+        ],
+        [
+            {"text": "🔄 Switch ke SQLite", "callback_data": "action:db:sqlite"},
+            {"text": "🔄 Switch ke Postgres", "callback_data": "action:db:postgres"},
+        ],
+        [
+            {"text": "◀️ Kembali ke Menu Utama", "callback_data": "menu:root"},
+        ],
+    ]
+}
+
+INLINE_BACK_HOME = {
+    "inline_keyboard": [
+        [{"text": "📂 Buka Menu Dropdown", "callback_data": "menu:root"}]
+    ]
+}
+
+# Backward compatibility alias
+MAIN_MENU_KEYBOARD = MAIN_DROPDOWN_KEYBOARD
 
 
 class TelegramNotifier:
@@ -179,33 +274,98 @@ class TelegramNotifier:
             logger.warning(f"Telegram dispatch failed with network error: {err_msg}")
             return {"success": False, "error": err_msg}
 
-    def send_menu(self, chat_id: Optional[str] = None) -> Dict[str, Any]:
-        """Sends the main interactive menu with custom mobile keyboard."""
-        msg = (
-            "🤖 <b>CUANIMUS Web Control Center — Mobile Bot</b>\n\n"
-            "Selamat datang! Bot ini terhubung langsung ke mesin kuantitatif CUANIMUS.\n"
-            "Gunakan tombol di keyboard Anda untuk akses cepat fitur:\n\n"
-            "📊 <b>Pemantauan & Portofolio:</b>\n"
-            "• <code>📊 Status</code> — Status sistem, health check & profil aktif\n"
-            "• <code>💰 Saldo</code> — Saldo equity, margin bebas & exposure (/balance)\n"
-            "• <code>📈 Market</code> — Live ticker & harga aktual Binance Futures\n"
-            "• <code>💼 Positions</code> — Posisi trading aktif & unrealized PnL\n"
-            "• <code>📅 Kinerja</code> — Rekap trade, win rate & PnL harian (/daily)\n"
-            "• <code>📋 Orders</code> — Riwayat 5 order terbaru (/orders)\n\n"
-            "⚡ <b>Strategi, Sinyal & AI:</b>\n"
-            "• <code>⚡ Signal V2A</code> — Evaluasi sinyal strategi Pullback V2A\n"
-            "• <code>⚙️ Strategi</code> — Daftar strategi kuantitatif terdaftar\n"
-            "• <code>🤖 AI & Agents</code> — Status model AI & MCP tools (46 tools)\n"
-            "• <code>/ai [tanya]</code> — Konsultasi AI Copilot langsung dari ponsel\n"
-            "• <code>/ticker [PAIR]</code> — Detail harga spesifik (cth: <code>/ticker ETH</code>)\n\n"
-            "🛡️ <b>Kontrol, Keamanan & Database:</b>\n"
-            "• <code>🛡️ Risk</code> — Parameter perlindungan & limit risiko\n"
-            "• <code>🛑 Kill Switch</code> — Aktifkan Emergency Stop seketika\n"
-            "• <code>🔄 Reset Stop</code> — Reset status Emergency Stop\n"
-            "• <code>🗄️ Database</code> — Status koneksi SQLite / PostgreSQL\n"
-            "• <code>/db_switch [sqlite|postgres]</code> — Ganti database aktif\n"
+    def edit_message_text(
+        self,
+        text: str,
+        message_id: int,
+        chat_id: Optional[str] = None,
+        parse_mode: str = "HTML",
+        reply_markup: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
+        """Edits an existing Telegram message in-place via editMessageText API."""
+        now_str = datetime.now(timezone.utc).isoformat()
+        if not self.enabled:
+            return {"success": False, "reason": "Telegram integration disabled"}
+
+        target_chat = chat_id or self.chat_id
+        if not self.bot_token or not target_chat:
+            return {"success": False, "reason": "Missing bot_token or chat_id"}
+
+        url = f"https://api.telegram.org/bot{self.bot_token}/editMessageText"
+        payload: Dict[str, Any] = {
+            "chat_id": target_chat,
+            "message_id": message_id,
+            "text": text,
+            "parse_mode": parse_mode,
+            "disable_web_page_preview": True,
+        }
+        if reply_markup:
+            payload["reply_markup"] = reply_markup
+
+        try:
+            req_data = json.dumps(payload).encode("utf-8")
+            req = urllib.request.Request(
+                url,
+                data=req_data,
+                headers={"Content-Type": "application/json"},
+                method="POST",
+            )
+            with urllib.request.urlopen(req, timeout=10.0) as resp:
+                resp_body = resp.read().decode("utf-8")
+                res_json = json.loads(resp_body)
+                return {"success": bool(res_json.get("ok")), "response": res_json}
+        except Exception as e:
+            logger.warning(f"Telegram editMessageText failed: {e}")
+            return {"success": False, "error": str(e)}
+
+    def answer_callback_query(
+        self,
+        callback_query_id: str,
+        text: Optional[str] = None,
+        show_alert: bool = False,
+    ) -> Dict[str, Any]:
+        """Acknowledges an incoming inline button callback query."""
+        if not self.bot_token:
+            return {"success": False}
+
+        url = f"https://api.telegram.org/bot{self.bot_token}/answerCallbackQuery"
+        payload: Dict[str, Any] = {"callback_query_id": callback_query_id}
+        if text:
+            payload["text"] = text
+            payload["show_alert"] = show_alert
+
+        try:
+            req_data = json.dumps(payload).encode("utf-8")
+            req = urllib.request.Request(
+                url,
+                data=req_data,
+                headers={"Content-Type": "application/json"},
+                method="POST",
+            )
+            with urllib.request.urlopen(req, timeout=5.0) as resp:
+                resp_body = resp.read().decode("utf-8")
+                res_json = json.loads(resp_body)
+                return {"success": bool(res_json.get("ok"))}
+        except Exception as e:
+            logger.warning(f"Telegram answerCallbackQuery failed: {e}")
+            return {"success": False, "error": str(e)}
+
+    def remove_sticky_keyboard(self, chat_id: Optional[str] = None) -> Dict[str, Any]:
+        """Dismisses any persistent bottom-drawer keyboard from the user's mobile screen."""
+        return self.send_message(
+            "📂 <i>Menyesuaikan tampilan: Mengaktifkan mode dropdown inline hemat layar.</i>",
+            reply_markup={"remove_keyboard": True},
+            chat_id=chat_id,
         )
-        return self.send_message(msg, reply_markup=MAIN_MENU_KEYBOARD, chat_id=chat_id)
+
+    def send_menu(self, chat_id: Optional[str] = None) -> Dict[str, Any]:
+        """Sends the main interactive dropdown menu with inline buttons."""
+        msg = (
+            "🤖 <b>CUANIMUS Mobile Control Center</b>\n\n"
+            "Pusat kendali trading kuantitatif & agen AI.\n"
+            "Pilih kategori menu dari dropdown inline di bawah:"
+        )
+        return self.send_message(msg, reply_markup=MAIN_DROPDOWN_KEYBOARD, chat_id=chat_id)
 
     def send_test_alert(self) -> Dict[str, Any]:
         """Dispatches test ping alert to verify bot configuration."""
@@ -217,7 +377,7 @@ class TelegramNotifier:
             "• <b>Environment:</b> PAPER / TESTNET SAFE\n\n"
             "<i>Trading notifications, risk vetoes, and emergency stops will be reported here.</i>"
         )
-        return self.send_message(msg, reply_markup=MAIN_MENU_KEYBOARD)
+        return self.send_message(msg, reply_markup=INLINE_BACK_HOME)
 
     def notify_order_filled(self, symbol: str, side: str, amount: float, price: float, pnl: Optional[float] = None) -> Dict[str, Any]:
         pnl_str = f"\n• <b>PnL:</b> <code>{pnl:+.2f} USDT</code>" if pnl is not None else ""
@@ -230,7 +390,7 @@ class TelegramNotifier:
             f"{pnl_str}\n"
             f"• <b>Time:</b> <code>{datetime.now(timezone.utc).strftime('%H:%M:%S UTC')}</code>"
         )
-        return self.send_message(msg, reply_markup=MAIN_MENU_KEYBOARD)
+        return self.send_message(msg, reply_markup=INLINE_BACK_HOME)
 
     def notify_emergency_stop(self, reason: str, halted_sessions: list) -> Dict[str, Any]:
         msg = (
@@ -322,12 +482,206 @@ class TelegramBotListener:
                     if data.get("ok"):
                         for upd in data.get("result", []):
                             self._last_update_id = max(self._last_update_id, upd["update_id"])
-                            self._handle_update(upd)
+                            if "callback_query" in upd:
+                                self._handle_callback_query(upd["callback_query"])
+                            elif "message" in upd:
+                                self._handle_update(upd)
             except urllib.error.URLError:
                 time.sleep(3.0)
             except Exception as e:
                 logger.warning(f"Error in Telegram poller: {e}")
                 time.sleep(2.0)
+
+    def _handle_callback_query(self, cb_query: Dict[str, Any]):
+        qid = cb_query.get("id")
+        sender_id = str(cb_query.get("from", {}).get("id"))
+        msg = cb_query.get("message", {})
+        message_id = msg.get("message_id")
+        data = (cb_query.get("data") or "").strip()
+
+        # Strict security: Only allow authorized chat ID
+        if sender_id != self.chat_id:
+            logger.warning(f"Unauthorized callback from unknown chat ID {sender_id}")
+            self.notifier.answer_callback_query(qid, text="⛔ Akses Ditolak: Bukan operator terdaftar.", show_alert=True)
+            return
+
+        self.notifier.answer_callback_query(qid)
+
+        try:
+            self._route_callback(data, message_id, sender_id)
+        except Exception as e:
+            logger.exception(f"Error handling callback query '{data}': {e}")
+
+    def _route_callback(self, data: str, message_id: int, sender_id: str):
+        if data in ("menu:root", "menu:main"):
+            msg = (
+                "🤖 <b>CUANIMUS Mobile Control Center</b>\n\n"
+                "Pusat kendali trading kuantitatif & agen AI.\n"
+                "Pilih kategori menu dari dropdown inline di bawah:"
+            )
+            self.notifier.edit_message_text(
+                text=msg,
+                message_id=message_id,
+                chat_id=sender_id,
+                reply_markup=MAIN_DROPDOWN_KEYBOARD,
+            )
+        elif data == "menu:market":
+            msg = (
+                "📊 <b>Kategori: Portofolio & Pasar</b>\n\n"
+                "Pilih data yang ingin Anda inspeksi secara real-time:"
+            )
+            self.notifier.edit_message_text(
+                text=msg,
+                message_id=message_id,
+                chat_id=sender_id,
+                reply_markup=MARKET_CATEGORY_KEYBOARD,
+            )
+        elif data == "menu:strategy":
+            msg = (
+                "⚡ <b>Kategori: Sinyal & Strategi</b>\n\n"
+                "Evaluasi sinyal strategi algoritma kuantitatif:"
+            )
+            self.notifier.edit_message_text(
+                text=msg,
+                message_id=message_id,
+                chat_id=sender_id,
+                reply_markup=STRATEGY_CATEGORY_KEYBOARD,
+            )
+        elif data == "menu:ai":
+            msg = (
+                "🤖 <b>Kategori: AI Copilot & Agent</b>\n\n"
+                "Status AI model, sesi paper trading & MCP tools:"
+            )
+            self.notifier.edit_message_text(
+                text=msg,
+                message_id=message_id,
+                chat_id=sender_id,
+                reply_markup=AI_CATEGORY_KEYBOARD,
+            )
+        elif data == "menu:risk":
+            msg = (
+                "🛡️ <b>Kategori: Risiko & Proteksi</b>\n\n"
+                "Pengawasan Risk Engine dan kontrol darurat:"
+            )
+            self.notifier.edit_message_text(
+                text=msg,
+                message_id=message_id,
+                chat_id=sender_id,
+                reply_markup=RISK_CATEGORY_KEYBOARD,
+            )
+        elif data == "menu:system":
+            msg = (
+                "🗄️ <b>Kategori: Database & Sistem</b>\n\n"
+                "Status penyimpanan ledger dan pergantian database:"
+            )
+            self.notifier.edit_message_text(
+                text=msg,
+                message_id=message_id,
+                chat_id=sender_id,
+                reply_markup=SYSTEM_CATEGORY_KEYBOARD,
+            )
+        elif data == "menu:help":
+            self._edit_with_help(message_id, sender_id)
+        elif data == "view:status":
+            self.notifier.edit_message_text(
+                text=self._format_status(),
+                message_id=message_id,
+                chat_id=sender_id,
+                reply_markup=self._make_nav_markup("view:status", "menu:market"),
+            )
+        elif data == "view:balance":
+            self.notifier.edit_message_text(
+                text=self._format_balance(),
+                message_id=message_id,
+                chat_id=sender_id,
+                reply_markup=self._make_nav_markup("view:balance", "menu:market"),
+            )
+        elif data == "view:market":
+            self.notifier.edit_message_text(
+                text=self._format_market(),
+                message_id=message_id,
+                chat_id=sender_id,
+                reply_markup=self._make_nav_markup("view:market", "menu:market"),
+            )
+        elif data == "view:positions":
+            self.notifier.edit_message_text(
+                text=self._format_positions(),
+                message_id=message_id,
+                chat_id=sender_id,
+                reply_markup=self._make_nav_markup("view:positions", "menu:market"),
+            )
+        elif data == "view:daily":
+            self.notifier.edit_message_text(
+                text=self._format_daily(),
+                message_id=message_id,
+                chat_id=sender_id,
+                reply_markup=self._make_nav_markup("view:daily", "menu:market"),
+            )
+        elif data == "view:orders":
+            self.notifier.edit_message_text(
+                text=self._format_orders(),
+                message_id=message_id,
+                chat_id=sender_id,
+                reply_markup=self._make_nav_markup("view:orders", "menu:market"),
+            )
+        elif data.startswith("view:signal:"):
+            sym = data.split(":")[-1]
+            self.notifier.edit_message_text(
+                text=self._format_signal(sym),
+                message_id=message_id,
+                chat_id=sender_id,
+                reply_markup=self._make_nav_markup(f"view:signal:{sym}", "menu:strategy"),
+            )
+        elif data == "view:strategy":
+            self.notifier.edit_message_text(
+                text=self._format_strategy(),
+                message_id=message_id,
+                chat_id=sender_id,
+                reply_markup=self._make_nav_markup("view:strategy", "menu:strategy"),
+            )
+        elif data == "view:risk":
+            self.notifier.edit_message_text(
+                text=self._format_risk(),
+                message_id=message_id,
+                chat_id=sender_id,
+                reply_markup=self._make_nav_markup("view:risk", "menu:risk"),
+            )
+        elif data == "view:agents":
+            self.notifier.edit_message_text(
+                text=self._format_agents(),
+                message_id=message_id,
+                chat_id=sender_id,
+                reply_markup=self._make_nav_markup("view:agents", "menu:ai"),
+            )
+        elif data == "view:ai_help":
+            self._edit_with_ai_help(message_id, sender_id)
+        elif data == "view:db":
+            self.notifier.edit_message_text(
+                text=self._format_database(),
+                message_id=message_id,
+                chat_id=sender_id,
+                reply_markup=self._make_nav_markup("view:db", "menu:system"),
+            )
+        elif data == "action:kill":
+            self._execute_inline_emergency_stop(message_id, sender_id)
+        elif data == "action:reset_stop":
+            self._execute_inline_reset_stop(message_id, sender_id)
+        elif data.startswith("action:db:"):
+            target = data.split(":")[-1]
+            self._execute_inline_db_switch(target, message_id, sender_id)
+
+    def _make_nav_markup(self, refresh_cb: str, back_cb: str = "menu:root") -> Dict[str, Any]:
+        return {
+            "inline_keyboard": [
+                [
+                    {"text": "🔄 Refresh", "callback_data": refresh_cb},
+                    {"text": "◀️ Kembali", "callback_data": back_cb},
+                ],
+                [
+                    {"text": "🏠 Menu Utama", "callback_data": "menu:root"},
+                ],
+            ]
+        }
 
     def _handle_update(self, update: Dict[str, Any]):
         msg = update.get("message")
@@ -356,7 +710,7 @@ class TelegramBotListener:
             logger.exception(f"Error handling Telegram command '{text}': {e}")
             self.notifier.send_message(
                 f"❌ Terjadi kesalahan saat memproses perintah <code>{text}</code>: {e}",
-                reply_markup=MAIN_MENU_KEYBOARD,
+                reply_markup=INLINE_BACK_HOME,
                 chat_id=sender_id,
             )
 
@@ -365,6 +719,11 @@ class TelegramBotListener:
 
         # 1. Main Menu
         if cmd in ("/start", "/menu", "/help", "menu", "help", "ℹ️ help & menu", "help & menu"):
+            self.notifier.send_message(
+                "📂 <i>Mode Dropdown Inline Aktif</i>",
+                reply_markup={"remove_keyboard": True},
+                chat_id=sender_id,
+            )
             self.notifier.send_menu(chat_id=sender_id)
 
         # 2. System Status
@@ -444,16 +803,18 @@ class TelegramBotListener:
         else:
             self.notifier.send_message(
                 f"❓ Perintah <code>{text}</code> tidak dikenali.\n\n"
-                f"Ketik <code>/menu</code> untuk membuka panduan menu dan kontrol cepat.",
-                reply_markup=MAIN_MENU_KEYBOARD,
+                f"Ketik <code>/menu</code> untuk membuka panduan menu dropdown.",
+                reply_markup=INLINE_BACK_HOME,
                 chat_id=sender_id,
             )
 
-    def _handle_status(self, sender_id: str):
-        if not self.api:
-            self.notifier.send_message("❌ Layanan Control Plane belum siap.", chat_id=sender_id)
-            return
+    # -------------------------------------------------------------------------
+    # FORMATTERS (Shared between Text Commands and Inline Dropdown Callbacks)
+    # -------------------------------------------------------------------------
 
+    def _format_status(self) -> str:
+        if not self.api:
+            return "❌ Layanan Control Plane belum siap."
         try:
             status = self.api.get_system_status()
             env_str = status.get("environment", "PAPER").upper()
@@ -464,7 +825,7 @@ class TelegramBotListener:
             risk = status.get("active_risk_profile", "balanced")
             health = status.get("platform_health", "HEALTHY")
 
-            msg = (
+            return (
                 "📊 <b>STATUS PLATFORM CUANIMUS</b>\n\n"
                 f"• <b>Kondisi Platform:</b> 🟢 {health}\n"
                 f"• <b>Environment:</b> <code>{env_str}</code> (Dry-Run: {dry_run})\n"
@@ -474,15 +835,12 @@ class TelegramBotListener:
                 f"• <b>Profil Risiko:</b> <code>{risk}</code>\n"
                 f"• <b>Waktu Server:</b> <code>{datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')}</code>"
             )
-            self.notifier.send_message(msg, reply_markup=MAIN_MENU_KEYBOARD, chat_id=sender_id)
         except Exception as e:
-            self.notifier.send_message(f"❌ Gagal mengambil status: {e}", chat_id=sender_id)
+            return f"❌ Gagal mengambil status: {e}"
 
-    def _handle_balance(self, sender_id: str):
+    def _format_balance(self) -> str:
         if not self.api:
-            self.notifier.send_message("❌ Layanan Control Plane belum siap.", chat_id=sender_id)
-            return
-
+            return "❌ Layanan Control Plane belum siap."
         try:
             risk = self.api.get_risk_status()
             equity = risk.get("equity", 16.73)
@@ -496,7 +854,7 @@ class TelegramBotListener:
             unrealized_pnl = sum(p.get("unrealized_pnl_usd", 0.0) for p in positions)
 
             pnl_bullet = "🟢" if unrealized_pnl >= 0 else "🔴"
-            msg = (
+            return (
                 "💰 <b>SALDO & WALLET CUANIMUS</b>\n\n"
                 f"• <b>Total Equity:</b> <code>${equity:,.2f} USDT</code>\n"
                 f"• <b>Margin Bebas:</b> <code>${free_margin:,.2f} USDT</code>\n"
@@ -505,17 +863,14 @@ class TelegramBotListener:
                 f"• <b>Posisi Terbuka:</b> <code>{len(positions)} posisi</code>\n"
                 f"• <b>Drawdown Portofolio:</b> <code>{drawdown:.2f}%</code>\n"
                 "• <b>Mode Keamanan:</b> 🔒 <b>PAPER SAFE</b> (Simulasi Akurat)\n\n"
-                "<i>Data tersinkronisasi langsung dengan ledger database.</i>"
+                f"<i>Diperbarui: {datetime.now(timezone.utc).strftime('%H:%M:%S UTC')}</i>"
             )
-            self.notifier.send_message(msg, reply_markup=MAIN_MENU_KEYBOARD, chat_id=sender_id)
         except Exception as e:
-            self.notifier.send_message(f"❌ Gagal memuat saldo: {e}", chat_id=sender_id)
+            return f"❌ Gagal memuat saldo: {e}"
 
-    def _handle_market(self, sender_id: str):
+    def _format_market(self) -> str:
         if not self.api:
-            self.notifier.send_message("❌ Layanan Control Plane belum siap.", chat_id=sender_id)
-            return
-
+            return "❌ Layanan Control Plane belum siap."
         try:
             wl = self.api.get_market_watchlist()
             lines = ["📈 <b>LIVE MARKET WATCHLIST (Binance Futures)</b>\n"]
@@ -524,7 +879,6 @@ class TelegramBotListener:
                 price = item.get("price")
                 chg = item.get("change_24h_pct")
                 regime = item.get("regime", "RANGING")
-                signal = item.get("current_signal", "HOLD")
 
                 if price is not None:
                     p_str = f"${price:,.4f}" if price < 1.0 else f"${price:,.2f}"
@@ -534,25 +888,22 @@ class TelegramBotListener:
                 else:
                     lines.append(f"⚪ <b>{sym}:</b> <i>Sedang menghubungkan...</i>")
 
-            lines.append("\n<i>Data ditarik secara aktual dari Binance Futures API.</i>")
-            self.notifier.send_message("\n".join(lines), reply_markup=MAIN_MENU_KEYBOARD, chat_id=sender_id)
+            lines.append(f"\n<i>Data Binance Futures aktual ({datetime.now(timezone.utc).strftime('%H:%M:%S UTC')})</i>")
+            return "\n".join(lines)
         except Exception as e:
-            self.notifier.send_message(f"❌ Gagal mengambil watchlist: {e}", chat_id=sender_id)
+            return f"❌ Gagal mengambil watchlist: {e}"
 
-    def _handle_ticker(self, symbol: str, sender_id: str):
+    def _format_ticker(self, symbol: str) -> str:
         if not self.api:
-            return
-        # Normalize symbol
+            return "❌ Layanan Control Plane belum siap."
         sym_clean = symbol.upper().split("/")[0].split(":")[0].replace("USDT", "").strip()
         if not sym_clean:
             sym_clean = "ETH"
         full_sym = f"{sym_clean}/USDT:USDT"
-
         try:
             t = self.api.get_market_ticker(full_sym)
             if t.get("error"):
-                self.notifier.send_message(f"⚠️ Gagal mendapatkan ticker untuk <code>{symbol}</code>: {t['error']}", chat_id=sender_id)
-                return
+                return f"⚠️ Gagal mendapatkan ticker untuk <code>{symbol}</code>: {t['error']}"
 
             price = t.get("price", 0)
             chg = t.get("change_24h_pct", 0)
@@ -560,33 +911,29 @@ class TelegramBotListener:
             low = t.get("low_24h", 0)
             vol = t.get("volume_24h_usd", 0)
 
-            msg = (
+            return (
                 f"🎯 <b>TICKER DETAIL: {full_sym}</b>\n\n"
                 f"• <b>Harga Terkini:</b> <code>${price:,.4f if price < 1.0 else price:,.2f}</code>\n"
                 f"• <b>Perubahan 24 Jam:</b> <code>{chg:+.2f}%</code>\n"
                 f"• <b>Tertinggi 24 Jam:</b> <code>${high:,.2f}</code>\n"
                 f"• <b>Terendah 24 Jam:</b> <code>${low:,.2f}</code>\n"
-                f"• <b>Volume 24 Jam (USD):</b> <code>${vol:,.2f}</code>\n"
-                f"• <b>Bursa:</b> Binance Futures Perpetual"
+                f"• <b>Volume 24 Jam:</b> <code>${vol:,.2f}</code>\n"
+                "• <b>Bursa:</b> Binance Futures Perpetual"
             )
-            self.notifier.send_message(msg, reply_markup=MAIN_MENU_KEYBOARD, chat_id=sender_id)
         except Exception as e:
-            self.notifier.send_message(f"❌ Error ticker: {e}", chat_id=sender_id)
+            return f"❌ Error ticker: {e}"
 
-    def _handle_positions(self, sender_id: str):
+    def _format_positions(self) -> str:
         if not self.api:
-            return
+            return "❌ Layanan Control Plane belum siap."
         try:
             positions = self.api.get_positions()
             if not positions:
-                self.notifier.send_message(
+                return (
                     "💼 <b>POSISI TRADING AKTIF</b>\n\n"
                     "Tidak ada posisi trading yang sedang terbuka (0 open positions).\n"
-                    "Mode: <b>PAPER SAFE</b>.",
-                    reply_markup=MAIN_MENU_KEYBOARD,
-                    chat_id=sender_id,
+                    "Mode: <b>PAPER SAFE</b>."
                 )
-                return
 
             lines = [f"💼 <b>POSISI TRADING AKTIF ({len(positions)})</b>\n"]
             for p in positions:
@@ -603,15 +950,13 @@ class TelegramBotListener:
                     f"  Entry: <code>${entry:,.2f}</code> | Mark: <code>${mark:,.2f}</code>\n"
                     f"  Unrealized PnL: <code>{pnl:+.2f} USDT</code>\n"
                 )
-            self.notifier.send_message("\n".join(lines), reply_markup=MAIN_MENU_KEYBOARD, chat_id=sender_id)
+            return "\n".join(lines)
         except Exception as e:
-            self.notifier.send_message(f"❌ Gagal mengambil posisi: {e}", chat_id=sender_id)
+            return f"❌ Gagal mengambil posisi: {e}"
 
-    def _handle_daily(self, sender_id: str):
+    def _format_daily(self) -> str:
         if not self.api:
-            self.notifier.send_message("❌ Layanan Control Plane belum siap.", chat_id=sender_id)
-            return
-
+            return "❌ Layanan Control Plane belum siap."
         try:
             today_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
             rows = []
@@ -636,7 +981,7 @@ class TelegramBotListener:
             status_str = daily_loss_info.get("status", "NORMAL")
 
             pnl_bullet = "🟢" if pnl_today_usd >= 0 else "🔴"
-            msg = (
+            return (
                 f"📅 <b>KINERJA HARIAN ({today_str} UTC)</b>\n\n"
                 f"• <b>Total Trade Hari Ini:</b> <code>{total_today}</code>\n"
                 f"• <b>Menang / Kalah:</b> 🟢 {wins}W / 🔴 {losses}L\n"
@@ -646,19 +991,17 @@ class TelegramBotListener:
                 f"• <b>Batas Harian:</b> <code>{limit_pct:.1f}%</code> ({status_str})\n\n"
                 "<i>Kinerja dihitung otomatis dari transaksi tertutup ledger database.</i>"
             )
-            self.notifier.send_message(msg, reply_markup=MAIN_MENU_KEYBOARD, chat_id=sender_id)
         except Exception as e:
-            self.notifier.send_message(f"❌ Gagal memuat kinerja harian: {e}", chat_id=sender_id)
+            return f"❌ Gagal memuat kinerja harian: {e}"
 
-    def _handle_orders(self, sender_id: str):
+    def _format_orders(self) -> str:
         if not self.api:
-            return
+            return "❌ Layanan Control Plane belum siap."
         try:
             orders = self.api.get_orders()
             recent = orders[:5]
             if not recent:
-                self.notifier.send_message("📋 Belum ada order yang tercatat.", chat_id=sender_id)
-                return
+                return "📋 Belum ada order yang tercatat."
 
             lines = ["📋 <b>RIWAYAT ORDER TERBARU</b>\n"]
             for o in recent:
@@ -669,13 +1012,13 @@ class TelegramBotListener:
                 price = float(o.get("price") or 0)
 
                 lines.append(f"• <b>{oid[:14]}</b>: {side} {sym} @ ${price:,.2f} [{status}]")
-            self.notifier.send_message("\n".join(lines), reply_markup=MAIN_MENU_KEYBOARD, chat_id=sender_id)
+            return "\n".join(lines)
         except Exception as e:
-            self.notifier.send_message(f"❌ Gagal mengambil order: {e}", chat_id=sender_id)
+            return f"❌ Gagal mengambil order: {e}"
 
-    def _handle_signal(self, symbol: str, sender_id: str):
+    def _format_signal(self, symbol: str) -> str:
         if not self.api:
-            return
+            return "❌ Layanan Control Plane belum siap."
         sym_clean = symbol.upper().split("/")[0].split(":")[0].replace("USDT", "").strip()
         if not sym_clean:
             sym_clean = "ETH"
@@ -689,23 +1032,21 @@ class TelegramBotListener:
             score = float(res.get("confidence", res.get("confidence_score", 0.0)))
 
             emoji = "🟢" if sig == "LONG" else ("🔴" if sig == "SHORT" else "⚪")
-
-            msg = (
+            return (
                 f"⚡ <b>EVALUASI SINYAL STRATEGI</b>\n\n"
                 f"• <b>Strategi:</b> <code>{strat}</code>\n"
                 f"• <b>Pair:</b> <code>{sym}</code> (15m Timeframe)\n"
                 f"• <b>Sinyal:</b> {emoji} <b>{sig}</b>\n"
                 f"• <b>Skor Keyakinan:</b> <code>{score:.1f}%</code>\n"
                 f"• <b>Alasan:</b> <i>{res.get('conclusion', reason)}</i>\n\n"
-                "<i>Evaluasi dihitung menggunakan engine teknikal CUANIMUS.</i>"
+                f"<i>Dihitung oleh engine teknikal CUANIMUS ({datetime.now(timezone.utc).strftime('%H:%M:%S UTC')}).</i>"
             )
-            self.notifier.send_message(msg, reply_markup=MAIN_MENU_KEYBOARD, chat_id=sender_id)
         except Exception as e:
-            self.notifier.send_message(f"❌ Gagal evaluasi sinyal: {e}", chat_id=sender_id)
+            return f"❌ Gagal evaluasi sinyal: {e}"
 
-    def _handle_strategy(self, sender_id: str):
+    def _format_strategy(self) -> str:
         if not self.api:
-            return
+            return "❌ Layanan Control Plane belum siap."
         try:
             strats = self.api.list_strategies()
             lines = ["⚙️ <b>STRATEGI TRADING KUANTITATIF</b>\n"]
@@ -720,14 +1061,13 @@ class TelegramBotListener:
                     f"  TF: <code>{tf}</code> | Regime: <i>{regimes}</i>\n"
                     f"  {desc[:65]}...\n"
                 )
-            lines.append("Ketik <code>⚡ Signal V2A</code> untuk evaluasi sinyal terkini.")
-            self.notifier.send_message("\n".join(lines), reply_markup=MAIN_MENU_KEYBOARD, chat_id=sender_id)
+            return "\n".join(lines)
         except Exception as e:
-            self.notifier.send_message(f"❌ Gagal memuat strategi: {e}", chat_id=sender_id)
+            return f"❌ Gagal memuat strategi: {e}"
 
-    def _handle_risk(self, sender_id: str):
+    def _format_risk(self) -> str:
         if not self.api:
-            return
+            return "❌ Layanan Control Plane belum siap."
         try:
             r = self.api.get_risk_status()
             cb = "🟢 ARMED & SAFE" if r.get("circuit_breaker_armed") else "🔒 EMERGENCY LOCKED"
@@ -742,7 +1082,7 @@ class TelegramBotListener:
             exp_usd = exp.get("current_usd", 0.0)
             exp_lim = exp.get("limit_pct", 100.0)
 
-            msg = (
+            return (
                 "🛡️ <b>RISK ENGINE & CIRCUIT BREAKER</b>\n\n"
                 f"• <b>Circuit Breaker:</b> {cb}\n"
                 f"• <b>Risk per Trade:</b> <code>{r_trade:.1f}%</code>\n"
@@ -752,13 +1092,12 @@ class TelegramBotListener:
                 f"• <b>Consecutive Losses:</b> <code>{r.get('consecutive_losses', {}).get('portfolio_current', 0)}</code>\n\n"
                 "<i>Risk Engine memvalidasi seluruh order secara independen sebelum eksekusi.</i>"
             )
-            self.notifier.send_message(msg, reply_markup=MAIN_MENU_KEYBOARD, chat_id=sender_id)
         except Exception as e:
-            self.notifier.send_message(f"❌ Gagal memuat status risiko: {e}", chat_id=sender_id)
+            return f"❌ Gagal memuat status risiko: {e}"
 
-    def _handle_agents(self, sender_id: str):
+    def _format_agents(self) -> str:
         if not self.api:
-            return
+            return "❌ Layanan Control Plane belum siap."
         try:
             agents = self.api.list_agents()
             ai_cfg = self.api.get_ai_config()
@@ -769,7 +1108,7 @@ class TelegramBotListener:
             prov = ai_cfg.get("provider", "gemini").upper()
             model = ai_cfg.get("model_name", "gemini-2.5-flash")
 
-            msg = (
+            return (
                 "🤖 <b>AI AGENT & MCP SUBSYSTEM</b>\n\n"
                 f"• <b>AI Layer Status:</b> {ai_active}\n"
                 f"• <b>Provider:</b> <code>{prov}</code>\n"
@@ -779,14 +1118,196 @@ class TelegramBotListener:
                 f"• <b>Tools MCP:</b> {len(mcp_tools)} tools siap pakai di port :8889\n\n"
                 "Gunakan <code>/ai [pertanyaan]</code> untuk berinteraksi langsung."
             )
-            self.notifier.send_message(msg, reply_markup=MAIN_MENU_KEYBOARD, chat_id=sender_id)
         except Exception as e:
-            self.notifier.send_message(f"❌ Gagal memuat data AI Agent: {e}", chat_id=sender_id)
+            return f"❌ Gagal memuat data AI Agent: {e}"
+
+    def _format_database(self) -> str:
+        if not self.api:
+            return "❌ Layanan Control Plane belum siap."
+        try:
+            db_stat = self.api.get_database_status()
+            backend = db_stat.get("backend", "SQLITE").upper()
+            connected = "🟢 TERHUBUNG" if db_stat.get("connected") else "🔴 TERPUTUS"
+            counts = db_stat.get("counts", {})
+            trades = counts.get("trades", 0)
+            orders = counts.get("orders", 0)
+
+            return (
+                "🗄️ <b>STATUS DATABASE CUANIMUS</b>\n\n"
+                f"• <b>Active Backend:</b> <b>{backend}</b>\n"
+                f"• <b>Status Koneksi:</b> {connected}\n"
+                f"• <b>Total Trades:</b> <code>{trades:,}</code> records\n"
+                f"• <b>Total Orders:</b> <code>{orders:,}</code> records\n\n"
+                "Gunakan tombol di dropdown untuk berpindah backend."
+            )
+        except Exception as e:
+            return f"❌ Gagal mengambil status database: {e}"
+
+    # -------------------------------------------------------------------------
+    # INLINE CALLBACK EDIT HELPERS
+    # -------------------------------------------------------------------------
+
+    def _edit_with_help(self, message_id: int, sender_id: str):
+        msg = (
+            "ℹ️ <b>Panduan Penggunaan Bot CUANIMUS</b>\n\n"
+            "Gunakan tombol dropdown inline untuk navigasi cepat, atau gunakan perintah berikut:\n"
+            "• <code>/status</code> — Status platform\n"
+            "• <code>/balance</code> — Saldo equity & margin\n"
+            "• <code>/market</code> — Live ticker Binance Futures\n"
+            "• <code>/ticker [PAIR]</code> — Detail harga spesifik\n"
+            "• <code>/positions</code> — Posisi trading aktif\n"
+            "• <code>/daily</code> — Kinerja & PnL harian\n"
+            "• <code>/orders</code> — 5 order terakhir\n"
+            "• <code>/signal [PAIR]</code> — Sinyal strategi V2A\n"
+            "• <code>/strategy</code> — Katalog strategi\n"
+            "• <code>/risk</code> — Parameter risk engine\n"
+            "• <code>/agents</code> — Status AI & MCP\n"
+            "• <code>/ai [tanya]</code> — Tanya AI Copilot\n"
+            "• <code>/db</code> — Status database\n"
+            "• <code>/kill</code> — Emergency Stop seketika\n"
+            "• <code>/reset</code> — Reset Emergency Stop\n"
+            "• <code>/menu</code> — Tampilkan menu dropdown"
+        )
+        markup = {
+            "inline_keyboard": [
+                [{"text": "◀️ Kembali ke Menu Utama", "callback_data": "menu:root"}],
+            ]
+        }
+        self.notifier.edit_message_text(text=msg, message_id=message_id, chat_id=sender_id, reply_markup=markup)
+
+    def _edit_with_ai_help(self, message_id: int, sender_id: str):
+        msg = (
+            "🧠 <b>Konsultasi AI Copilot</b>\n\n"
+            "Kirim pertanyaan analisis trading langsung dari ponsel.\n\n"
+            "<b>Format Perintah:</b>\n"
+            "<code>/ai [pertanyaan Anda]</code>\n\n"
+            "<b>Contoh:</b>\n"
+            "• <code>/ai analisa kondisi pasar ETH hari ini</code>\n"
+            "• <code>/ai apakah market sedang trending atau ranging?</code>\n"
+            "• <code>/ai jelaskan sinyal Pullback V2A terbaru</code>"
+        )
+        markup = {
+            "inline_keyboard": [
+                [{"text": "🤖 Status AI & MCP", "callback_data": "view:agents"}],
+                [{"text": "◀️ Kategori AI", "callback_data": "menu:ai"}],
+                [{"text": "🏠 Menu Utama", "callback_data": "menu:root"}],
+            ]
+        }
+        self.notifier.edit_message_text(text=msg, message_id=message_id, chat_id=sender_id, reply_markup=markup)
+
+    def _execute_inline_emergency_stop(self, message_id: int, sender_id: str):
+        if not self.api:
+            return
+        res = self.api.trigger_emergency_stop("Triggered via Telegram Bot Inline Menu")
+        halted = res.get("halted_sessions", [])
+        halted_str = ", ".join(halted) if halted else "Semua sesi dihentikan"
+        msg = (
+            "🚨 <b>EMERGENCY KILL SWITCH DIKIRIM!</b>\n\n"
+            f"• <b>Status:</b> 🔒 EMERGENCY_STOP_ACTIVE\n"
+            f"• <b>Sesi Dihentikan:</b> <code>{halted_str}</code>\n"
+            "• <b>Aksi Eksekusi:</b> Semua pembuatan order baru di-veto seketika.\n\n"
+            "Gunakan tombol di bawah untuk memulihkan operasi kembali normal."
+        )
+        markup = {
+            "inline_keyboard": [
+                [{"text": "🔄 Reset Emergency Stop", "callback_data": "action:reset_stop"}],
+                [{"text": "🏠 Menu Utama", "callback_data": "menu:root"}],
+            ]
+        }
+        self.notifier.edit_message_text(text=msg, message_id=message_id, chat_id=sender_id, reply_markup=markup)
+
+    def _execute_inline_reset_stop(self, message_id: int, sender_id: str):
+        if not self.api:
+            return
+        self.api.reset_emergency_stop()
+        msg = (
+            "🔄 <b>EMERGENCY STOP TELAH DIRESET</b>\n\n"
+            "• <b>Status Sistem:</b> 🟢 NORMAL OPERATION\n"
+            "• <b>Safety Invariant:</b> <code>PAPER_SAFE</code>\n"
+            "• <b>Keterangan:</b> Sistem siap menerima perintah dan memantau sinyal kembali."
+        )
+        markup = {
+            "inline_keyboard": [
+                [{"text": "📊 Status Platform", "callback_data": "view:status"}],
+                [{"text": "🏠 Menu Utama", "callback_data": "menu:root"}],
+            ]
+        }
+        self.notifier.edit_message_text(text=msg, message_id=message_id, chat_id=sender_id, reply_markup=markup)
+
+    def _execute_inline_db_switch(self, target: str, message_id: int, sender_id: str):
+        if not self.api:
+            return
+        tgt = target.lower().strip()
+        res = self.api.switch_database_backend(tgt)
+        new_backend = res.get("active_backend", tgt).upper()
+        msg = (
+            f"✅ <b>Database Berhasil Dialihkan!</b>\n\n"
+            f"• <b>Backend Baru:</b> <code>{new_backend}</code>\n"
+            f"• <b>Pesan:</b> {res.get('message', 'Koneksi aktif')}"
+        )
+        markup = {
+            "inline_keyboard": [
+                [{"text": "🗄️ Status Database", "callback_data": "view:db"}],
+                [{"text": "◀️ Kategori Sistem", "callback_data": "menu:system"}],
+                [{"text": "🏠 Menu Utama", "callback_data": "menu:root"}],
+            ]
+        }
+        self.notifier.edit_message_text(text=msg, message_id=message_id, chat_id=sender_id, reply_markup=markup)
+
+    # -------------------------------------------------------------------------
+    # COMMAND HANDLERS (Invoked by text commands)
+    # -------------------------------------------------------------------------
+
+    def _handle_status(self, sender_id: str):
+        text = self._format_status()
+        self.notifier.send_message(text, reply_markup=self._make_nav_markup("view:status", "menu:market"), chat_id=sender_id)
+
+    def _handle_balance(self, sender_id: str):
+        text = self._format_balance()
+        self.notifier.send_message(text, reply_markup=self._make_nav_markup("view:balance", "menu:market"), chat_id=sender_id)
+
+    def _handle_market(self, sender_id: str):
+        text = self._format_market()
+        self.notifier.send_message(text, reply_markup=self._make_nav_markup("view:market", "menu:market"), chat_id=sender_id)
+
+    def _handle_ticker(self, symbol: str, sender_id: str):
+        text = self._format_ticker(symbol)
+        self.notifier.send_message(text, reply_markup=self._make_nav_markup("menu:market", "menu:market"), chat_id=sender_id)
+
+    def _handle_positions(self, sender_id: str):
+        text = self._format_positions()
+        self.notifier.send_message(text, reply_markup=self._make_nav_markup("view:positions", "menu:market"), chat_id=sender_id)
+
+    def _handle_daily(self, sender_id: str):
+        text = self._format_daily()
+        self.notifier.send_message(text, reply_markup=self._make_nav_markup("view:daily", "menu:market"), chat_id=sender_id)
+
+    def _handle_orders(self, sender_id: str):
+        text = self._format_orders()
+        self.notifier.send_message(text, reply_markup=self._make_nav_markup("view:orders", "menu:market"), chat_id=sender_id)
+
+    def _handle_signal(self, symbol: str, sender_id: str):
+        text = self._format_signal(symbol)
+        sym_clean = symbol.upper().split("/")[0].split(":")[0].replace("USDT", "").strip() or "ETH"
+        self.notifier.send_message(text, reply_markup=self._make_nav_markup(f"view:signal:{sym_clean}", "menu:strategy"), chat_id=sender_id)
+
+    def _handle_strategy(self, sender_id: str):
+        text = self._format_strategy()
+        self.notifier.send_message(text, reply_markup=self._make_nav_markup("view:strategy", "menu:strategy"), chat_id=sender_id)
+
+    def _handle_risk(self, sender_id: str):
+        text = self._format_risk()
+        self.notifier.send_message(text, reply_markup=self._make_nav_markup("view:risk", "menu:risk"), chat_id=sender_id)
+
+    def _handle_agents(self, sender_id: str):
+        text = self._format_agents()
+        self.notifier.send_message(text, reply_markup=self._make_nav_markup("view:agents", "menu:ai"), chat_id=sender_id)
 
     def _handle_ai_query(self, prompt: str, sender_id: str):
         if not prompt:
             self.notifier.send_message(
                 "💡 Format: <code>/ai [pertanyaan Anda]</code>\nContoh: <code>/ai evaluasi kondisi pasar ETH saat ini</code>",
+                reply_markup=INLINE_BACK_HOME,
                 chat_id=sender_id,
             )
             return
@@ -801,41 +1322,20 @@ class TelegramBotListener:
                 f"<b>Pesan:</b> {test_res.get('message', 'Analisis selesai.')}\n"
                 f"<b>Latency:</b> <code>{test_res.get('latency_ms', 0)}ms</code>"
             )
-            self.notifier.send_message(resp_msg, reply_markup=MAIN_MENU_KEYBOARD, chat_id=sender_id)
+            self.notifier.send_message(resp_msg, reply_markup=INLINE_BACK_HOME, chat_id=sender_id)
         except Exception as e:
-            self.notifier.send_message(f"❌ Gagal memproses AI: {e}", chat_id=sender_id)
+            self.notifier.send_message(f"❌ Gagal memproses AI: {e}", reply_markup=INLINE_BACK_HOME, chat_id=sender_id)
 
     def _handle_database(self, sender_id: str):
-        if not self.api:
-            return
-        try:
-            db_stat = self.api.get_database_status()
-            backend = db_stat.get("backend", "SQLITE").upper()
-            connected = "🟢 TERHUBUNG" if db_stat.get("connected") else "🔴 TERPUTUS"
-            counts = db_stat.get("counts", {})
-            trades = counts.get("trades", 0)
-            orders = counts.get("orders", 0)
-
-            msg = (
-                "🗄️ <b>STATUS DATABASE CUANIMUS</b>\n\n"
-                f"• <b>Active Backend:</b> <b>{backend}</b>\n"
-                f"• <b>Status Koneksi:</b> {connected}\n"
-                f"• <b>Total Trades:</b> <code>{trades:,}</code> records\n"
-                f"• <b>Total Orders:</b> <code>{orders:,}</code> records\n\n"
-                "Untuk mengganti database dari ponsel:\n"
-                "• <code>/db_switch postgres</code> — Alihkan ke PostgreSQL\n"
-                "• <code>/db_switch sqlite</code> — Alihkan ke SQLite Default"
-            )
-            self.notifier.send_message(msg, reply_markup=MAIN_MENU_KEYBOARD, chat_id=sender_id)
-        except Exception as e:
-            self.notifier.send_message(f"❌ Gagal mengambil status database: {e}", chat_id=sender_id)
+        text = self._format_database()
+        self.notifier.send_message(text, reply_markup=self._make_nav_markup("view:db", "menu:system"), chat_id=sender_id)
 
     def _handle_db_switch(self, target: str, sender_id: str):
         if not self.api:
             return
         tgt = target.lower().strip()
         if tgt not in ("sqlite", "postgres", "postgresql"):
-            self.notifier.send_message("⚠️ Target harus <code>sqlite</code> atau <code>postgres</code>.", chat_id=sender_id)
+            self.notifier.send_message("⚠️ Target harus <code>sqlite</code> atau <code>postgres</code>.", reply_markup=INLINE_BACK_HOME, chat_id=sender_id)
             return
 
         try:
@@ -845,11 +1345,11 @@ class TelegramBotListener:
                 f"✅ <b>Database Berhasil Dialihkan!</b>\n\n"
                 f"• <b>Backend Baru:</b> <code>{new_backend}</code>\n"
                 f"• <b>Pesan:</b> {res.get('message', 'Koneksi aktif')}",
-                reply_markup=MAIN_MENU_KEYBOARD,
+                reply_markup=self._make_nav_markup("view:db", "menu:system"),
                 chat_id=sender_id,
             )
         except Exception as e:
-            self.notifier.send_message(f"❌ Gagal alihkan database: {e}", chat_id=sender_id)
+            self.notifier.send_message(f"❌ Gagal alihkan database: {e}", reply_markup=INLINE_BACK_HOME, chat_id=sender_id)
 
     def _handle_emergency_stop(self, sender_id: str):
         if not self.api:
@@ -862,12 +1362,18 @@ class TelegramBotListener:
                 "🚨 <b>EMERGENCY KILL SWITCH DIKIRIM!</b>\n\n"
                 f"• <b>Status:</b> 🔒 EMERGENCY_STOP_ACTIVE\n"
                 f"• <b>Sesi Dihentikan:</b> <code>{halted_str}</code>\n"
-                f"• <b>Aksi Eksekusi:</b> Semua pembuatan order baru di-veto seketika.\n\n"
-                "Gunakan <code>🔄 Reset Stop</code> untuk memulihkan operasi kembali normal."
+                "• <b>Aksi Eksekusi:</b> Semua pembuatan order baru di-veto seketika.\n\n"
+                "Gunakan tombol di bawah untuk memulihkan operasi kembali normal."
             )
-            self.notifier.send_message(msg, reply_markup=MAIN_MENU_KEYBOARD, chat_id=sender_id)
+            markup = {
+                "inline_keyboard": [
+                    [{"text": "🔄 Reset Emergency Stop", "callback_data": "action:reset_stop"}],
+                    [{"text": "🏠 Menu Utama", "callback_data": "menu:root"}],
+                ]
+            }
+            self.notifier.send_message(msg, reply_markup=markup, chat_id=sender_id)
         except Exception as e:
-            self.notifier.send_message(f"❌ Gagal mengaktifkan Emergency Stop: {e}", chat_id=sender_id)
+            self.notifier.send_message(f"❌ Gagal mengaktifkan Emergency Stop: {e}", reply_markup=INLINE_BACK_HOME, chat_id=sender_id)
 
     def _handle_reset_stop(self, sender_id: str):
         if not self.api:
@@ -880,6 +1386,12 @@ class TelegramBotListener:
                 f"• <b>Safety Invariant:</b> <code>PAPER_SAFE</code>\n"
                 f"• <b>Keterangan:</b> Sistem siap menerima perintah dan memantau sinyal kembali."
             )
-            self.notifier.send_message(msg, reply_markup=MAIN_MENU_KEYBOARD, chat_id=sender_id)
+            markup = {
+                "inline_keyboard": [
+                    [{"text": "📊 Status Platform", "callback_data": "view:status"}],
+                    [{"text": "🏠 Menu Utama", "callback_data": "menu:root"}],
+                ]
+            }
+            self.notifier.send_message(msg, reply_markup=markup, chat_id=sender_id)
         except Exception as e:
-            self.notifier.send_message(f"❌ Gagal mereset Emergency Stop: {e}", chat_id=sender_id)
+            self.notifier.send_message(f"❌ Gagal mereset Emergency Stop: {e}", reply_markup=INLINE_BACK_HOME, chat_id=sender_id)
