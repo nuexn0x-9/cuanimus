@@ -205,25 +205,58 @@ class BinancePublicAdapter:
         """
         def fetch():
             data = self._get("/fapi/v1/exchangeInfo")
-            usdt_perps = [
-                {
-                    "symbol": s["symbol"],
-                    "internal": from_binance_symbol(s["symbol"]),
-                    "base": s["baseAsset"],
-                    "quote": s["quoteAsset"],
-                    "status": s["status"],
-                    "price_precision": s.get("pricePrecision", 2),
-                    "qty_precision": s.get("quantityPrecision", 3),
-                }
-                for s in data.get("symbols", [])
-                if s.get("quoteAsset") == "USDT" and s.get("contractType") == "PERPETUAL" and s.get("status") == "TRADING"
-            ]
+            usdt_perps = []
+            for s in data.get("symbols", []):
+                if s.get("quoteAsset") == "USDT" and s.get("contractType") == "PERPETUAL" and s.get("status") == "TRADING":
+                    step_size = round(10.0 ** (-int(s.get("quantityPrecision", 3))), 8)
+                    tick_size = round(10.0 ** (-int(s.get("pricePrecision", 2))), 8)
+                    min_qty = step_size
+                    min_notional = 5.0
+                    for f in s.get("filters", []):
+                        ftype = f.get("filterType")
+                        if ftype == "LOT_SIZE":
+                            step_size = float(f.get("stepSize", step_size))
+                            min_qty = float(f.get("minQty", min_qty))
+                        elif ftype == "PRICE_FILTER":
+                            tick_size = float(f.get("tickSize", tick_size))
+                        elif ftype in ("MIN_NOTIONAL", "NOTIONAL"):
+                            min_notional = float(f.get("notional", min_notional))
+                    usdt_perps.append({
+                        "symbol": s["symbol"],
+                        "internal": from_binance_symbol(s["symbol"]),
+                        "base": s["baseAsset"],
+                        "quote": s["quoteAsset"],
+                        "status": s["status"],
+                        "price_precision": s.get("pricePrecision", 2),
+                        "qty_precision": s.get("quantityPrecision", 3),
+                        "step_size": step_size,
+                        "min_qty": min_qty,
+                        "tick_size": tick_size,
+                        "min_notional": min_notional,
+                    })
             return {
                 "pairs": usdt_perps,
                 "total": len(usdt_perps),
                 "timestamp": int(time.time() * 1000),
             }
         return self._cached("exchange_info", self.EXCHANGE_INFO_TTL, fetch)
+
+    def get_symbol_filter(self, symbol: str) -> Dict[str, float]:
+        """Returns step_size, min_qty, tick_size, min_notional dynamically for a symbol."""
+        b_sym = to_binance_symbol(symbol) if "/" in symbol else symbol.upper()
+        try:
+            info = self.get_exchange_info()
+            for p in info.get("pairs", []):
+                if p["symbol"] == b_sym or p.get("internal") == symbol:
+                    return {
+                        "step_size": float(p.get("step_size", 0.001)),
+                        "min_qty": float(p.get("min_qty", 0.001)),
+                        "tick_size": float(p.get("tick_size", 0.01)),
+                        "min_notional": float(p.get("min_notional", 5.0)),
+                    }
+        except Exception as e:
+            logger.warning(f"Could not load symbol filter for {symbol}: {e}")
+        return {"step_size": 0.001, "min_qty": 0.001, "tick_size": 0.01, "min_notional": 5.0}
 
     def get_order_book(self, symbol: str, limit: int = 10) -> Dict[str, Any]:
         """Get order book depth."""

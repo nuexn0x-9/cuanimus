@@ -387,6 +387,105 @@ class TestAutonomousTradingEngine(unittest.TestCase):
         self.assertEqual(tr_row["exit_reason"], "stop_loss")
         self.assertLess(float(tr_row["close_profit"]), 0)
 
+    # -------------------------------------------------------------------------
+    # 10. Unified Execution Router — Paper Mode (dry_run = True)
+    # -------------------------------------------------------------------------
+    def test_unified_execution_router_paper_mode(self):
+        from cuanimus.execution.paper_safety import UnifiedExecutionSafetyGuard
+        guard = UnifiedExecutionSafetyGuard(dry_run=True)
+        res = guard.execute_order(
+            symbol="BTC/USDT:USDT",
+            side="BUY",
+            amount=0.05,
+            price=60000.0,
+            order_type="limit",
+            execution_mode="paper",
+        )
+        self.assertTrue(res["is_paper"])
+        self.assertEqual(res["status"], "FILLED")
+        self.assertTrue(res["exchange_order_id"].startswith("SIM_"))
+
+    # -------------------------------------------------------------------------
+    # 11. Unified Execution Router — Testnet Mode (dry_run = False)
+    # -------------------------------------------------------------------------
+    def test_unified_execution_router_testnet_mode(self):
+        from cuanimus.execution.paper_safety import UnifiedExecutionSafetyGuard
+        from cuanimus.exchange.binance_private import BinancePrivateAdapter
+        from unittest.mock import patch
+
+        guard = UnifiedExecutionSafetyGuard(dry_run=False, environment="testnet")
+
+        # Mock BinancePrivateAdapter
+        with patch.object(BinancePrivateAdapter, "has_credentials", return_value=True):
+            with patch.object(BinancePrivateAdapter, "create_order") as mock_create:
+                mock_create.side_effect = [
+                    {"orderId": 12345678, "status": "FILLED", "origQty": "0.05", "price": "60000.0"},
+                    {"orderId": 12345679, "status": "NEW"},  # SL
+                    {"orderId": 12345680, "status": "NEW"},  # TP
+                ]
+                res = guard.execute_order(
+                    symbol="BTC/USDT:USDT",
+                    side="BUY",
+                    amount=0.05,
+                    price=60000.0,
+                    order_type="limit",
+                    execution_mode="testnet",
+                    stop_loss=58000.0,
+                    take_profit=64000.0,
+                )
+                self.assertFalse(res["is_paper"])
+                self.assertEqual(res["environment"], "testnet")
+                self.assertEqual(res["exchange_order_id"], "12345678")
+                self.assertEqual(len(res["protective_orders"]), 2)
+                self.assertEqual(res["protective_orders"][0]["type"], "STOP_LOSS")
+                self.assertEqual(res["protective_orders"][1]["type"], "TAKE_PROFIT")
+
+    # -------------------------------------------------------------------------
+    # 12. Preflight Validation — Fail Closed on Missing Credentials
+    # -------------------------------------------------------------------------
+    def test_preflight_validation_fail_closed_live(self):
+        from cuanimus.exchange.binance_private import BinancePrivateAdapter
+        live_adapter = BinancePrivateAdapter(api_key="", api_secret="", environment="live")
+        res = live_adapter.validate_connection()
+        self.assertFalse(res["valid"])
+        self.assertIn("missing", res["error"].lower())
+
+        # Starting a LIVE profile without credentials must raise ValueError
+        p = TradingProfile(
+            profile_id="prof_live_test",
+            name="Live BTC Test",
+            symbol="BTC/USDT:USDT",
+            execution_mode=ExecutionMode.LIVE,
+        )
+        self.profile_store.save_profile(p)
+        with self.assertRaises(ValueError):
+            self.engine.start_profile("prof_live_test")
+
+    # -------------------------------------------------------------------------
+    # 13. Dynamic Position Sizing with Binance Precision Filters
+    # -------------------------------------------------------------------------
+    def test_dynamic_position_sizing_precision_filters(self):
+        from cuanimus.risk.sizing import calculate_position_size, quantize_value
+
+        # Test quantize_value helper
+        self.assertEqual(quantize_value(1.23456, 0.01), 1.23)
+        self.assertEqual(quantize_value(12.78, 1.0), 12.0)
+
+        # Sizing with custom step_size and min_notional
+        sizing = calculate_position_size(
+            wallet_balance=1000.0,
+            risk_per_trade_pct=1.0,  # $10 risk
+            entry_price=100.0,
+            stop_loss_price=95.0,    # 5% SL distance -> desired notional = $200
+            leverage=3.0,
+            step_size=0.1,
+            min_notional=10.0,
+        )
+        self.assertTrue(sizing["approved"])
+        self.assertEqual(sizing["contracts"], 2.0)  # 200 / 100 = 2.0
+        self.assertEqual(sizing["step_size"], 0.1)
+
 
 if __name__ == "__main__":
     unittest.main()
+

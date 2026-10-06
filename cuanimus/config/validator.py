@@ -86,11 +86,14 @@ class ConfigValidator:
                 errors.append(
                     f"SAFETY INVARIANT BREACH: 'environment.live_trading_enabled' is True while 'environment.env_name' is '{env.env_name}'."
                 )
-            # Permanent Phase 5/6 policy check: Live capital trading is strictly disabled
-            errors.append(
-                "MANDATORY PLATFORM GATE: Phase 6 Readiness Gate 8 mandates that real-capital live trading is STRICTLY NO-GO. "
-                "Set environment.live_trading_enabled = False."
-            )
+            # Live Capital Credential Preflight
+            from cuanimus.exchange.binance_private import get_binance_credentials
+            live_key, live_sec = get_binance_credentials("live")
+            if not live_key or not live_sec:
+                errors.append(
+                    "PREFLIGHT ERROR: 'environment.live_trading_enabled' is True, but Binance LIVE API credentials "
+                    "(BINANCE_LIVE_API_KEY / BINANCE_LIVE_API_SECRET) are missing or invalid!"
+                )
 
         # Invariant 2.2: Stop-Loss Precedence
         if not exec_cfg.pessimistic_sl_precedence:

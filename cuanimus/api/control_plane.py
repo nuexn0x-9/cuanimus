@@ -773,6 +773,21 @@ class ControlPlaneAPI:
         except Exception as e:
             logger.warning(f"Could not load risk metrics from database: {e}")
 
+        # If running in TESTNET or LIVE mode with credentials, fetch live Binance balance
+        try:
+            cfg, _ = self.loader.load()
+            env_mode = cfg.environment.env_name if cfg else "paper"
+            dry_run = cfg.environment.dry_run if cfg else True
+            if not dry_run or env_mode in ("testnet", "live"):
+                from cuanimus.exchange.binance_private import get_binance_private_adapter
+                b_adapter = get_binance_private_adapter(env_mode)
+                if b_adapter.has_credentials():
+                    ubal = b_adapter.get_usdt_balance()
+                    if ubal.get("balance", 0.0) > 0:
+                        equity = ubal["balance"]
+        except Exception:
+            pass
+
         open_positions = self.get_positions()
         total_exposure_usd = sum(p["size"] * p["mark_price"] for p in open_positions)
         unrealized_pnl = sum(p["unrealized_pnl_usd"] for p in open_positions)

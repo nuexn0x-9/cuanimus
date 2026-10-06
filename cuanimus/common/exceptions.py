@@ -31,4 +31,7 @@ class LookaheadViolationError(CuanimusException):
 class SafetyViolationError(CuanimusException):
     pass
 
+class FatalSafetyViolationError(SafetyViolationError):
+    pass
+
 

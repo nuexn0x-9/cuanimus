@@ -408,6 +408,7 @@ const Modals = {
                 <select id="prof-input-exec" class="cmd-input" style="border: 1px solid var(--color-border); border-radius: 4px; padding: 8px 12px;">
                   <option value="paper" ${p.execution_mode === 'paper' ? 'selected' : ''}>PAPER (Safe Simulation)</option>
                   <option value="testnet" ${p.execution_mode === 'testnet' ? 'selected' : ''}>TESTNET (Binance Futures Testnet)</option>
+                  <option value="live" ${p.execution_mode === 'live' ? 'selected' : ''}>LIVE (Binance Real Capital)</option>
                 </select>
               </div>
             </div>

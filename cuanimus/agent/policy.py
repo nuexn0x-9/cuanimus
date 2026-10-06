@@ -98,10 +98,10 @@ class AgentTradingPolicy:
                 reason=f"Environment '{environment}' is not permitted by policy. Allowed: {self.allowed_environments}",
                 policy_name=self.policy_name,
             )
-        if environment.lower() == "live":
+        if environment.lower() == "live" and "live" not in [env.lower() for env in self.allowed_environments]:
             return PolicyEvaluationResult(
                 is_approved=False,
-                reason="FATAL: Real capital live trading is strictly disabled for autonomous agents.",
+                reason="FATAL: Real capital live trading is not permitted by current agent policy.",
                 policy_name=self.policy_name,
             )
 

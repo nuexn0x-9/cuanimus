@@ -130,6 +130,7 @@ class RiskEngine:
             entry_price=intent.entry_price_target,
             stop_loss_price=stop_loss_price,
             leverage=effective_leverage,
+            symbol=intent.symbol,
         )
 
         if not sizing.get("approved", False):

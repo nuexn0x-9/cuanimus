@@ -425,17 +425,22 @@ class AutonomousTradingEngine:
         sl = risk_eval.stop_loss_price or final_intent.suggested_stop_loss or (current_market_price * 0.985)
         tp = risk_eval.take_profit_price or final_intent.suggested_take_profit or (current_market_price * 1.035)
 
-        # Paper Execution Safety Assertion
-        paper_res = self.safety_guard.execute_paper_order(
+        # Unified Execution Safety Routing (Paper / Testnet / Live)
+        exec_mode_val = profile.execution_mode.value if isinstance(profile.execution_mode, ExecutionMode) else str(profile.execution_mode).lower()
+        order_res = self.safety_guard.execute_order(
             symbol=symbol,
             side=side,
             amount=amount,
             price=current_market_price,
             order_type="limit",
+            execution_mode=exec_mode_val,
+            stop_loss=sl,
+            take_profit=tp,
+            client_order_id=f"CNMS_{final_intent.strategy_id[:4].upper()}_{uuid.uuid4().hex[:8]}",
         )
 
         # Record trade into database via PositionManager
-        order_id = f"ORD_{uuid.uuid4().hex[:10]}"
+        order_id = order_res.get("exchange_order_id") or f"ORD_{uuid.uuid4().hex[:10]}"
         trade_id = self.position_manager.record_entry(
             symbol=symbol,
             side=side,
@@ -569,10 +574,24 @@ class AutonomousTradingEngine:
     # -------------------------------------------------------------------------
 
     def start_profile(self, profile_id: str) -> Dict[str, Any]:
-        """Activates and starts autonomous trading for a profile."""
+        """Activates and starts autonomous trading for a profile with preflight checks."""
         profile = self.store.get_profile(profile_id)
         if not profile:
             raise KeyError(f"Profile {profile_id} not found")
+
+        # Preflight validation for TESTNET and LIVE
+        exec_mode = profile.execution_mode.value if isinstance(profile.execution_mode, ExecutionMode) else str(profile.execution_mode).lower()
+        if exec_mode in ("testnet", "live"):
+            from cuanimus.exchange.binance_private import get_binance_private_adapter
+            adapter = get_binance_private_adapter(exec_mode)
+            preflight = adapter.validate_connection()
+            if not preflight.get("valid"):
+                err_msg = preflight.get("error", "Preflight connection failed")
+                logger.error(f"[AutonomousTradingEngine] Preflight failed for {exec_mode.upper()} profile {profile_id}: {err_msg}")
+                raise ValueError(f"Cannot start {exec_mode.upper()} profile '{profile.name}': {err_msg}")
+
+            # Reconcile exchange state upon starting real exchange profile
+            self.reconcile_exchange_state(environment=exec_mode)
 
         # Create or resume session
         session = self.store.get_active_session_for_profile(profile_id)
@@ -606,8 +625,42 @@ class AutonomousTradingEngine:
             "status": "RUNNING",
             "profile_id": profile_id,
             "session_id": session.session_id,
-            "message": f"Profile '{profile.name}' started.",
+            "message": f"Profile '{profile.name}' started in {exec_mode.upper()} mode.",
         }
+
+    def reconcile_exchange_state(self, environment: str = "testnet") -> Dict[str, Any]:
+        """
+        Reconciles actual Binance Futures account balance, positions,
+        and open orders against internal state.
+        """
+        env = environment.lower().strip()
+        from cuanimus.exchange.binance_private import get_binance_private_adapter
+        adapter = get_binance_private_adapter(env)
+
+        if not adapter.has_credentials():
+            return {"reconciled": False, "reason": "No credentials configured"}
+
+        try:
+            balance_info = adapter.get_usdt_balance()
+            positions = adapter.get_positions()
+            open_orders = adapter.get_open_orders()
+
+            logger.info(
+                f"[Reconciliation] {env.upper()} Balance: {balance_info.get('available_balance', 0.0):.2f} USDT, "
+                f"Open Positions: {len(positions)}, Open Orders: {len(open_orders)}"
+            )
+
+            return {
+                "reconciled": True,
+                "environment": env,
+                "usdt_balance": balance_info,
+                "positions_count": len(positions),
+                "open_orders_count": len(open_orders),
+                "positions": positions,
+            }
+        except Exception as e:
+            logger.warning(f"[Reconciliation] Error reconciling {env.upper()} state: {e}")
+            return {"reconciled": False, "error": str(e)}
 
     def pause_profile(self, profile_id: str) -> Dict[str, Any]:
         """Pauses autonomous evaluation for a profile."""

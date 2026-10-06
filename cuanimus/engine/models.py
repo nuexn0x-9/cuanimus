@@ -22,6 +22,7 @@ class ExecutionMode(str, Enum):
     """Execution targets."""
     PAPER = "paper"            # Simulated paper execution (Default & Safe)
     TESTNET = "testnet"        # Binance Futures Testnet
+    LIVE = "live"              # Real-capital Binance Futures execution
 
 
 class SessionStatus(str, Enum):
