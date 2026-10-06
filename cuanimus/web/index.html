@@ -12,6 +12,7 @@
     <!-- Global Header -->
     <header class="app-header">
       <div class="header-left">
+        <button id="btn-nav-hamburger" class="btn btn-sm btn-hamburger" title="Toggle Navigation Menu">☰</button>
         <div class="brand-badge">
           <div class="brand-logo-icon">C</div>
           <span>CUANIMUS</span>
@@ -48,6 +49,15 @@
         </button>
       </div>
     </header>
+
+    <!-- Guest / Read-Only Warning Banner -->
+    <div id="guest-auth-banner" class="guest-banner" style="display:none">
+      <span>👁️ <b>Read-Only Mode:</b> You are viewing as Guest. Controls are locked.</span>
+      <button class="btn btn-xs btn-primary" onclick="Modals.showLoginModal()">🔑 Sign In (Super Admin)</button>
+    </div>
+
+    <!-- Mobile Navigation Backdrop -->
+    <div id="nav-backdrop" class="nav-backdrop"></div>
 
     <!-- App Body: Navigation Sidebar + View Workspace -->
     <div class="app-body">

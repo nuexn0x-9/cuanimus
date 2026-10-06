@@ -34,22 +34,42 @@ class CuanimusApp {
       const auth = await API.getAuthMe();
       this.currentUser = auth;
       const btn = document.getElementById('btn-header-auth');
-      if (!btn) return;
+      const banner = document.getElementById('guest-auth-banner');
+
       if (auth?.authenticated) {
-        btn.innerHTML = `👤 ${auth.username} [${auth.role}]`;
-        btn.title = 'Click to sign out';
-        btn.onclick = async () => {
-          if (!confirm(`Sign out from ${auth.username}?`)) return;
-          await API.logout().catch(() => {});
-          Toast.info('Signed out');
-          this.checkAuthStatus();
-        };
+        if (banner) banner.style.display = 'none';
+        if (btn) {
+          btn.innerHTML = `👤 ${auth.username} [${auth.role}]`;
+          btn.title = 'Click to sign out';
+          btn.onclick = async () => {
+            if (!confirm(`Sign out from ${auth.username}?`)) return;
+            await API.logout().catch(() => {});
+            Toast.info('Signed out');
+            this.checkAuthStatus();
+          };
+        }
       } else {
-        btn.innerHTML = '🔑 Sign In';
-        btn.title = 'Click to sign in';
-        btn.onclick = () => Modals.showLoginModal(() => this.checkAuthStatus());
+        if (banner) banner.style.display = 'flex';
+        if (btn) {
+          btn.innerHTML = '🔑 Sign In';
+          btn.title = 'Click to sign in';
+          btn.onclick = () => Modals.showLoginModal(() => this.checkAuthStatus());
+        }
       }
     } catch (_) {}
+  }
+
+  requireAuth(actionFn, msg = 'Sign in with your Super Admin / Operator credentials to continue.') {
+    if (!this.currentUser?.authenticated) {
+      Toast.warn(msg);
+      Modals.showLoginModal(async () => {
+        await this.checkAuthStatus();
+        if (actionFn) actionFn();
+      });
+      return false;
+    }
+    if (actionFn) actionFn();
+    return true;
   }
 
   startAutoRefresh() {
@@ -58,20 +78,40 @@ class CuanimusApp {
   }
 
   _bindNavigation() {
+    const nav = document.querySelector('.app-nav');
+    const backdrop = document.getElementById('nav-backdrop');
+    const closeDrawer = () => {
+      nav?.classList.remove('drawer-open');
+      backdrop?.classList.remove('active');
+    };
+
     document.querySelectorAll('.nav-item').forEach(item => {
       item.addEventListener('click', () => {
         const view = item.getAttribute('data-view');
         if (view) this.navigate(view);
+        closeDrawer();
       });
     });
+    backdrop?.addEventListener('click', closeDrawer);
+
     window.addEventListener('hashchange', () => {
       const hash = window.location.hash.replace('#', '') || 'overview';
       this.navigate(hash, false);
+      closeDrawer();
     });
   }
 
   _bindGlobalHeader() {
-    document.getElementById('btn-header-emergency')?.addEventListener('click', () => Modals.showEmergencyStopModal());
+    const nav = document.querySelector('.app-nav');
+    const backdrop = document.getElementById('nav-backdrop');
+    document.getElementById('btn-nav-hamburger')?.addEventListener('click', () => {
+      nav?.classList.toggle('drawer-open');
+      backdrop?.classList.toggle('active');
+    });
+
+    document.getElementById('btn-header-emergency')?.addEventListener('click', () => {
+      this.requireAuth(() => Modals.showEmergencyStopModal(), 'Sign in to trigger emergency kill switch.');
+    });
     document.getElementById('btn-header-doctor')?.addEventListener('click',    () => this.runDoctorDiagnostics());
     document.getElementById('btn-header-copilot')?.addEventListener('click',   () => Modals.showAiCopilotModal());
   }
@@ -371,7 +411,7 @@ class CuanimusApp {
     const ord = ordRes.orders   || [];
     const trd = trdRes.trades   || [];
 
-    // Side summary
+    // Side summary & Quick Order Widget
     const sideEl = document.getElementById('terminal-side-summary');
     if (sideEl) {
       const env = this.systemStatus.environment || 'PAPER';
@@ -383,6 +423,56 @@ class CuanimusApp {
           <div style="display:flex;justify-content:space-between"><span>Pending Orders:</span><b>${ord.filter(o=>o.status==='SUBMITTED').length}</b></div>
           <div style="display:flex;justify-content:space-between"><span>Closed Trades:</span><b>${trd.length}</b></div>
         </div>
+
+        <div class="order-entry-box">
+          <div style="font-weight:700;font-size:12px;margin-bottom:8px">⚡ Quick Order Entry</div>
+          <div class="side-selector">
+            <button id="btn-side-long" class="side-btn ${(this._orderSide||'BUY')==='BUY'?'active-long':''}" onclick="window.app._selectOrderSide('BUY')">LONG (BUY)</button>
+            <button id="btn-side-short" class="side-btn ${this._orderSide==='SELL'?'active-short':''}" onclick="window.app._selectOrderSide('SELL')">SHORT (SELL)</button>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px">
+            <div>
+              <label class="form-label" style="font-size:10px">Type</label>
+              <select id="manual-order-type" class="form-input" style="padding:4px 6px;font-size:11px">
+                <option value="LIMIT">LIMIT</option>
+                <option value="MARKET">MARKET</option>
+              </select>
+            </div>
+            <div>
+              <label class="form-label" style="font-size:10px">Amount</label>
+              <input type="number" id="manual-order-amount" class="form-input" style="padding:4px 6px;font-size:11px" value="1.0" step="0.1" min="0.01">
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px">
+            <div>
+              <label class="form-label" style="font-size:10px">Price (USDT)</label>
+              <input type="number" id="manual-order-price" class="form-input" style="padding:4px 6px;font-size:11px" placeholder="Auto">
+            </div>
+            <div>
+              <label class="form-label" style="font-size:10px">Leverage</label>
+              <select id="manual-order-lev" class="form-input" style="padding:4px 6px;font-size:11px">
+                <option value="1">1x</option>
+                <option value="3" selected>3x</option>
+                <option value="5">5x</option>
+                <option value="10">10x</option>
+              </select>
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:12px">
+            <div>
+              <label class="form-label" style="font-size:10px">Stop Loss %</label>
+              <input type="number" id="manual-order-sl" class="form-input" style="padding:4px 6px;font-size:11px" value="1.5" step="0.1">
+            </div>
+            <div>
+              <label class="form-label" style="font-size:10px">Take Profit %</label>
+              <input type="number" id="manual-order-tp" class="form-input" style="padding:4px 6px;font-size:11px" value="3.0" step="0.1">
+            </div>
+          </div>
+          <button id="btn-submit-manual-order" class="btn btn-primary" style="width:100%;font-size:12px;padding:7px" onclick="window.app.submitManualOrder()">
+            🚀 Submit Order
+          </button>
+        </div>
+
         <div style="margin-top:14px;display:flex;flex-direction:column;gap:8px">
           <button class="btn btn-ai btn-sm" onclick="Modals.showAiCopilotModal()">🤖 Ask AI Copilot</button>
           <button class="btn btn-danger btn-sm" onclick="Modals.showEmergencyStopModal()">🚨 Emergency Stop</button>
@@ -404,7 +494,10 @@ class CuanimusApp {
         <td class="mono ${this._pnlClass(p.roe_pct)}">${this._pnlSign(p.roe_pct)}${this._fmt(p.roe_pct)}%</td>
         <td class="mono bear">$${this._fmt(p.stop_loss)}</td>
         <td class="mono bull">$${this._fmt(p.take_profit)}</td>
-        <td><button class="btn btn-xs" onclick="window.app.inspectTrace('${p.decision_trace_id||p.id}')">Trace</button></td>
+        <td style="white-space:nowrap">
+          <button class="btn btn-xs" onclick="window.app.inspectTrace('${p.decision_trace_id||p.id}')">Trace</button>
+          <button class="btn btn-xs btn-danger" style="margin-left:3px" onclick="window.app.closePosition(${p.id})">Close</button>
+        </td>
       </tr>`).join('') : this._emptyRow(10, 'No open positions. Portfolio is flat.');
 
     const ordRows = ord.length ? ord.map(o => {
@@ -420,7 +513,10 @@ class CuanimusApp {
         <td>${o.type}</td>
         <td class="mono">$${this._fmt(o.price)}</td>
         <td class="mono">${o.filled}/${o.amount}</td>
-        <td><span class="badge ${cls}">${o.status}</span></td>
+        <td>
+          <span class="badge ${cls}">${o.status}</span>
+          ${o.status==='SUBMITTED' ? `<button class="btn btn-xs btn-warn" style="margin-left:3px" onclick="window.app.cancelOrder('${o.order_id}')">Cancel</button>` : ''}
+        </td>
         <td style="font-size:10px;color:var(--text-muted)">${o.created_at||''}</td>
       </tr>`;}).join('') : this._emptyRow(9, 'No orders in lifecycle buffer.');
 
@@ -444,7 +540,7 @@ class CuanimusApp {
       <h4 class="section-title" style="margin-bottom:8px">ACTIVE POSITIONS</h4>
       <div class="table-responsive" style="margin-bottom:20px">
         <table class="data-table">
-          <thead><tr><th>Symbol</th><th>Side</th><th>Size</th><th>Entry</th><th>Mark</th><th>uPnL</th><th>ROE%</th><th>SL</th><th>TP</th><th>Trace</th></tr></thead>
+          <thead><tr><th>Symbol</th><th>Side</th><th>Size</th><th>Entry</th><th>Mark</th><th>uPnL</th><th>ROE%</th><th>SL</th><th>TP</th><th>Action</th></tr></thead>
           <tbody>${posRows}</tbody>
         </table>
       </div>
@@ -455,13 +551,89 @@ class CuanimusApp {
           <tbody>${ordRows}</tbody>
         </table>
       </div>
-      <h4 class="section-title" style="margin-bottom:8px">CLOSED TRADES — AUDIT TRAIL</h4>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin:14px 0 8px">
+        <h4 class="section-title" style="margin:0">CLOSED TRADES — AUDIT TRAIL</h4>
+        <button class="btn btn-xs" onclick="window.location.href=API.getTradesCsvUrl()">📥 Export Trades CSV</button>
+      </div>
       <div class="table-responsive">
         <table class="data-table">
           <thead><tr><th>Trade ID</th><th>Symbol</th><th>Side</th><th>Amount</th><th>Entry</th><th>Exit</th><th>PnL</th><th>Reason</th><th>Close Time</th><th>Trace</th></tr></thead>
           <tbody>${trdRows}</tbody>
         </table>
       </div>`;
+  }
+
+  _selectOrderSide(side) {
+    this._orderSide = side;
+    const btnL = document.getElementById('btn-side-long');
+    const btnS = document.getElementById('btn-side-short');
+    if (side === 'BUY') {
+      btnL?.classList.add('active-long');
+      btnS?.classList.remove('active-short');
+    } else {
+      btnS?.classList.add('active-short');
+      btnL?.classList.remove('active-long');
+    }
+  }
+
+  async submitManualOrder() {
+    this.requireAuth(async () => {
+      const side = this._orderSide || 'BUY';
+      const otype = document.getElementById('manual-order-type')?.value || 'LIMIT';
+      const amount = parseFloat(document.getElementById('manual-order-amount')?.value) || 1.0;
+      const priceVal = document.getElementById('manual-order-price')?.value;
+      const price = priceVal ? parseFloat(priceVal) : null;
+      const sl = parseFloat(document.getElementById('manual-order-sl')?.value) || 1.5;
+      const tp = parseFloat(document.getElementById('manual-order-tp')?.value) || 3.0;
+      const lev = parseFloat(document.getElementById('manual-order-lev')?.value) || 3.0;
+
+      Toast.info(`Submitting manual ${side} order...`);
+      try {
+        const res = await API.createManualOrder({
+          symbol: this.selectedSymbol,
+          side,
+          type: otype,
+          amount,
+          price,
+          stop_loss_pct: sl,
+          take_profit_pct: tp,
+          leverage: lev
+        });
+        Toast.success(res.message || 'Order placed successfully!');
+        if (window.SoundEffects) SoundEffects.play('trade');
+        this._refreshTradingTables();
+      } catch (err) {
+        Toast.error('Order failed: ' + err.message);
+      }
+    }, 'Sign in with your Super Admin / Operator account to place orders.');
+  }
+
+  async closePosition(tradeId) {
+    this.requireAuth(async () => {
+      if (!confirm(`Manually close position #${tradeId}?`)) return;
+      Toast.info(`Closing position #${tradeId}...`);
+      try {
+        const res = await API.closePosition(tradeId);
+        Toast.success(`Position #${tradeId} closed! PnL: ${res.profit_abs} USDT`);
+        if (window.SoundEffects) SoundEffects.play('trade');
+        this._refreshTradingTables();
+      } catch (err) {
+        Toast.error('Failed to close position: ' + err.message);
+      }
+    }, 'Sign in to close positions.');
+  }
+
+  async cancelOrder(orderId) {
+    this.requireAuth(async () => {
+      if (!confirm(`Cancel order ${orderId}?`)) return;
+      try {
+        await API.cancelOrder(orderId);
+        Toast.success(`Order ${orderId} cancelled.`);
+        this._refreshTradingTables();
+      } catch (err) {
+        Toast.error('Failed to cancel order: ' + err.message);
+      }
+    }, 'Sign in to cancel orders.');
   }
 
   async inspectTrace(traceId) {
@@ -903,6 +1075,7 @@ class CuanimusApp {
                 <button class="btn btn-sm btn-prof-trigger" data-id="${p.profile_id}">⚡ Test</button>
               `}
               <button class="btn btn-sm btn-prof-edit"   data-id="${p.profile_id}">✏️ Edit</button>
+              <button class="btn btn-sm btn-prof-clone"  data-id="${p.profile_id}">📋 Clone</button>
               <button class="btn btn-sm btn-prof-delete" data-id="${p.profile_id}" style="color:var(--bear)">🗑️</button>
             </div>
           </div>`;
@@ -947,11 +1120,16 @@ class CuanimusApp {
       </div>
 
       <div style="margin-bottom:22px">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-          <h3 style="font-size:13px;font-weight:700;margin:0">Configured Trading Profiles</h3>
-          <span style="font-size:11px;color:var(--text-muted)">Candle Boundary: Strictly Closed Bars</span>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+          <div>
+            <h3 style="font-size:13px;font-weight:700;margin:0">Configured Trading Profiles</h3>
+            <span style="font-size:11px;color:var(--text-muted)">Candle Boundary: Strictly Closed Bars</span>
+          </div>
+          <div style="display:flex;gap:8px">
+            <input type="text" id="prof-filter-search" class="form-input" style="padding:4px 8px;font-size:11px;width:160px" placeholder="🔍 Search pair...">
+          </div>
         </div>
-        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:14px">
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:14px" id="profiles-grid-container">
           ${profilesHtml}
         </div>
       </div>
@@ -970,44 +1148,77 @@ class CuanimusApp {
       </div>`;
 
     // Wire buttons
-    c.querySelector('#btn-create-profile')?.addEventListener('click', () => Modals.showProfileModal(null, () => this.renderAutonomous()));
-    c.querySelector('#btn-create-empty')?.addEventListener('click',   () => Modals.showProfileModal(null, () => this.renderAutonomous()));
+    c.querySelector('#btn-create-profile')?.addEventListener('click', () => {
+      this.requireAuth(() => Modals.showProfileModal(null, () => this.renderAutonomous()), 'Sign in to create trading profile.');
+    });
+    c.querySelector('#btn-create-empty')?.addEventListener('click', () => {
+      this.requireAuth(() => Modals.showProfileModal(null, () => this.renderAutonomous()), 'Sign in to create trading profile.');
+    });
     c.querySelector('#btn-refresh-autonomous')?.addEventListener('click', () => this.renderAutonomous());
+
+    // Search filter
+    document.getElementById('prof-filter-search')?.addEventListener('input', e => {
+      const q = e.target.value.toLowerCase();
+      c.querySelectorAll('#profiles-grid-container .card').forEach(card => {
+        card.style.display = card.textContent.toLowerCase().includes(q) ? 'block' : 'none';
+      });
+    });
 
     const action = (sel, fn) => c.querySelectorAll(sel).forEach(btn => btn.addEventListener('click', () => fn(btn.getAttribute('data-id'))));
     action('.btn-prof-start',   id => this._profileAction(id,'start'));
     action('.btn-prof-pause',   id => this._profileAction(id,'pause'));
     action('.btn-prof-stop',    id => this._profileAction(id,'stop'));
     action('.btn-prof-trigger', id => this._profileTick(id));
-    action('.btn-prof-edit',    id => { const p = profiles.find(x=>x.profile_id===id); if(p) Modals.showProfileModal(p, ()=>this.renderAutonomous()); });
+    action('.btn-prof-edit',    id => {
+      this.requireAuth(() => {
+        const p = profiles.find(x=>x.profile_id===id);
+        if(p) Modals.showProfileModal(p, ()=>this.renderAutonomous());
+      });
+    });
+    action('.btn-prof-clone',   id => {
+      this.requireAuth(() => {
+        const p = profiles.find(x=>x.profile_id===id);
+        if(p) {
+          const cloneData = { ...p, profile_id: '', name: `${p.name} (Copy)` };
+          Modals.showProfileModal(cloneData, ()=>this.renderAutonomous());
+        }
+      });
+    });
     action('.btn-prof-delete',  id => this._profileDelete(id));
     action('.btn-inspect-trace',id => { const t = traces.find(x=>x.trace_id===id); if(t) Modals.showAutonomousTraceModal(t); });
   }
 
   async _profileAction(id, act) {
-    try {
-      if (act==='start') await API.startTradingProfile(id);
-      else if (act==='pause') await API.pauseTradingProfile(id);
-      else if (act==='stop')  await API.stopTradingProfile(id);
-      Toast.success(`Profile ${act} successful.`);
-      this.renderAutonomous();
-    } catch (err) { Toast.error(`Failed to ${act} profile: ${err.message}`); }
+    this.requireAuth(async () => {
+      try {
+        if (act==='start') await API.startTradingProfile(id);
+        else if (act==='pause') await API.pauseTradingProfile(id);
+        else if (act==='stop')  await API.stopTradingProfile(id);
+        Toast.success(`Profile ${act} successful.`);
+        if (window.SoundEffects && act === 'start') SoundEffects.play('trade');
+        this.renderAutonomous();
+      } catch (err) { Toast.error(`Failed to ${act} profile: ${err.message}`); }
+    }, `Sign in to ${act} profile.`);
   }
   async _profileTick(id) {
-    Toast.info('Running evaluation tick…');
-    try {
-      const r = await API.triggerProfileTick(id);
-      Toast.success(`Tick outcome: ${r.status||'OK'}`);
-      this.renderAutonomous();
-    } catch (err) { Toast.error('Tick error: ' + err.message); }
+    this.requireAuth(async () => {
+      Toast.info('Running evaluation tick…');
+      try {
+        const r = await API.triggerProfileTick(id);
+        Toast.success(`Tick outcome: ${r.status||'OK'}`);
+        this.renderAutonomous();
+      } catch (err) { Toast.error('Tick error: ' + err.message); }
+    }, 'Sign in to trigger tick.');
   }
   async _profileDelete(id) {
-    if (!confirm('Delete this trading profile?')) return;
-    try {
-      await API.deleteTradingProfile(id);
-      Toast.success('Profile deleted.');
-      this.renderAutonomous();
-    } catch (err) { Toast.error('Delete failed: ' + err.message); }
+    this.requireAuth(async () => {
+      if (!confirm('Delete this trading profile?')) return;
+      try {
+        await API.deleteTradingProfile(id);
+        Toast.success('Profile deleted.');
+        this.renderAutonomous();
+      } catch (err) { Toast.error('Delete failed: ' + err.message); }
+    }, 'Sign in to delete profile.');
   }
 
   /* ═══════════════════════════════════════════════════════════
@@ -1357,48 +1568,91 @@ class CuanimusApp {
   async renderSettings() {
     const c = document.getElementById('view-settings');
     if (!c) return;
-    const [settings, tg] = await Promise.all([
+    const [settings, tg, usersRes] = await Promise.all([
       API.getSettings().catch(() => ({})),
-      API.getTelegramStatus().catch(() => ({}))
+      API.getTelegramStatus().catch(() => ({})),
+      (this.currentUser?.role === 'ADMIN' ? API.getUsers().catch(() => ({ users: [] })) : Promise.resolve({ users: [] }))
     ]);
+
+    const users = usersRes.users || [];
+    const usersRows = users.length ? users.map(u => `
+      <tr>
+        <td><b>${u.username}</b></td>
+        <td><span class="badge ${u.role==='ADMIN'?'badge-bull':(u.role==='OPERATOR'?'badge-info':'badge-neutral')}">${u.role}</span></td>
+        <td><span class="badge badge-neutral">${u.source||'db'}</span></td>
+        <td style="font-size:11px;color:var(--text-muted)">${u.last_login||'Never'}</td>
+      </tr>`).join('') : this._emptyRow(4, 'No user list available.');
 
     c.innerHTML = `
       <div class="view-header">
         <div>
-          <div class="view-title">📱 Settings &amp; Integrations</div>
-          <div class="view-subtitle">UI preferences, theme controls &amp; Telegram notification center</div>
+          <div class="view-title">📱 Settings, Security &amp; Integrations</div>
+          <div class="view-subtitle">Super Admin credentials, operator RBAC, Telegram alerts &amp; platform preferences</div>
         </div>
       </div>
 
+      <!-- Security & User Management -->
       <div class="table-panel">
         <div class="panel-header">
-          <div class="panel-title">📱 Telegram Bot Integration</div>
+          <div class="panel-title">🔐 Security &amp; Access Control (RBAC)</div>
+          <span class="badge ${this.currentUser?.authenticated?'badge-bull':'badge-warn'}">
+            ${this.currentUser?.authenticated ? `LOGGED IN: ${this.currentUser.username} [${this.currentUser.role}]` : 'GUEST / READ-ONLY'}
+          </span>
+        </div>
+        <div style="padding:16px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:10px">
+            <div>
+              <div style="font-weight:700;font-size:13px;margin-bottom:2px">Current Sesi: ${this.currentUser?.username || 'Guest'}</div>
+              <div style="font-size:11px;color:var(--text-sec)">Source: Environment / PBKDF2 Vault | Session Active</div>
+            </div>
+            <div style="display:flex;gap:8px">
+              <button class="btn btn-sm btn-primary" id="btn-open-change-pwd">🔑 Change Password</button>
+              ${this.currentUser?.role==='ADMIN' ? `<button class="btn btn-sm btn-ai" id="btn-open-create-user">👤 + Add Operator User</button>` : ''}
+            </div>
+          </div>
+
+          ${this.currentUser?.role==='ADMIN' ? `
+            <h4 class="section-title" style="margin-top:14px;margin-bottom:8px">REGISTERED SYSTEM ACCOUNTS</h4>
+            <div class="table-responsive">
+              <table class="data-table">
+                <thead><tr><th>Username</th><th>Role</th><th>Source</th><th>Last Login</th></tr></thead>
+                <tbody>${usersRows}</tbody>
+              </table>
+            </div>
+          ` : ''}
+        </div>
+      </div>
+
+      <!-- Telegram Bot Integration -->
+      <div class="table-panel">
+        <div class="panel-header">
+          <div class="panel-title">📱 Telegram Notification Center</div>
           <span class="badge ${tg.is_configured?'badge-bull':'badge-warn'}">${tg.is_configured?'CONFIGURED':'NOT CONFIGURED'}</span>
         </div>
         <div style="padding:16px">
           <p style="color:var(--text-sec);margin-bottom:14px;font-size:12px">
             Dispatches instant alerts for Order Fills, Stop Loss / Take Profit hits, Risk Vetoes, and Emergency Stops.
           </p>
-          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:16px">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
             <div>
-              <div class="stat-card-label">Bot Token</div>
-              <div class="mono" style="font-size:12px">${tg.bot_token_masked||'Not set'}</div>
+              <label class="form-label">Telegram Bot Token</label>
+              <input type="text" id="input-tg-token" class="form-input" placeholder="e.g. 8377465953:AAHRFdDp..." value="${tg.bot_token_masked||''}">
             </div>
             <div>
-              <div class="stat-card-label">Chat ID</div>
-              <div class="mono" style="font-size:12px">${tg.chat_id||'Not set'}</div>
-            </div>
-            <div>
-              <div class="stat-card-label">Alerts</div>
-              <div>${tg.enabled?'<b class="bull">ENABLED</b>':'<b class="warn">DISABLED</b>'}</div>
+              <label class="form-label">Telegram Chat ID</label>
+              <input type="text" id="input-tg-chat" class="form-input" placeholder="e.g. 5009408813" value="${tg.chat_id||''}">
             </div>
           </div>
-          <button class="btn btn-primary btn-sm" id="btn-test-telegram">🔔 Send Test Alert</button>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-primary btn-sm" id="btn-save-telegram">💾 Save Telegram Settings</button>
+            <button class="btn btn-sm" id="btn-test-telegram">🔔 Send Test Alert</button>
+          </div>
         </div>
       </div>
 
+      <!-- Appearance & Sound Preferences -->
       <div class="table-panel">
-        <div class="panel-header"><div class="panel-title">🎨 Appearance &amp; Refresh</div></div>
+        <div class="panel-header"><div class="panel-title">🎨 Appearance &amp; Audio Preferences</div></div>
         <div style="padding:16px;display:flex;flex-direction:column;gap:14px">
           <div style="display:flex;justify-content:space-between;align-items:center">
             <span>Theme:</span>
@@ -1406,6 +1660,13 @@ class CuanimusApp {
               <option value="dark"  ${(settings.theme||'dark')==='dark' ?'selected':''}>Dark — Trading Pro</option>
               <option value="light" ${settings.theme==='light'?'selected':''}>Light</option>
             </select>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <span>Audio Chimes:</span>
+            <label style="cursor:pointer;display:flex;align-items:center;gap:6px">
+              <input type="checkbox" id="pref-sound" checked>
+              <span>Enable Web Audio Synthesizer</span>
+            </label>
           </div>
           <div style="display:flex;justify-content:space-between;align-items:center">
             <span>Timezone:</span><span class="mono">UTC</span>
@@ -1416,7 +1677,27 @@ class CuanimusApp {
         </div>
       </div>`;
 
-    document.getElementById('btn-test-telegram').addEventListener('click', async () => {
+    document.getElementById('btn-open-change-pwd')?.addEventListener('click', () => {
+      this.requireAuth(() => Modals.showChangePasswordModal());
+    });
+    document.getElementById('btn-open-create-user')?.addEventListener('click', () => {
+      this.requireAuth(() => Modals.showUserModal(() => this.renderSettings()));
+    });
+
+    document.getElementById('btn-save-telegram')?.addEventListener('click', async () => {
+      this.requireAuth(async () => {
+        const token = document.getElementById('input-tg-token')?.value.trim();
+        const chat = document.getElementById('input-tg-chat')?.value.trim();
+        Toast.info('Updating Telegram configuration…');
+        try {
+          await API.updateSettings({ telegram_bot_token: token, telegram_chat_id: chat });
+          Toast.success('Telegram configuration saved!');
+          this.renderSettings();
+        } catch (err) { Toast.error('Save failed: ' + err.message); }
+      });
+    });
+
+    document.getElementById('btn-test-telegram')?.addEventListener('click', async () => {
       Toast.info('Sending Telegram test alert…');
       try {
         const r = await API.sendTelegramTest();
@@ -1425,9 +1706,13 @@ class CuanimusApp {
       } catch (err) { Toast.error('Alert failed: ' + err.message); }
     });
 
-    document.getElementById('pref-theme').addEventListener('change', e => {
+    document.getElementById('pref-theme')?.addEventListener('change', e => {
       document.body.className = e.target.value === 'light' ? 'theme-light' : '';
       Toast.info(`Theme: ${e.target.value}`);
+    });
+
+    document.getElementById('pref-sound')?.addEventListener('change', e => {
+      if (e.target.checked && window.SoundEffects) SoundEffects.play('trade');
     });
   }
 

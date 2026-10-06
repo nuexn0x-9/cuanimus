@@ -6,15 +6,35 @@
 const API = {
   baseUrl: window.location.origin,
 
+  getToken() {
+    return localStorage.getItem('cnms_session_token') || '';
+  },
+  setToken(token) {
+    if (token) localStorage.setItem('cnms_session_token', token);
+    else localStorage.removeItem('cnms_session_token');
+  },
+  getCsrfToken() {
+    return localStorage.getItem('cnms_csrf_token') || '';
+  },
+  setCsrfToken(token) {
+    if (token) localStorage.setItem('cnms_csrf_token', token);
+    else localStorage.removeItem('cnms_csrf_token');
+  },
+
   async request(endpoint, options = {}) {
     const url = `${this.baseUrl}${endpoint}`;
+    const token = this.getToken();
+    const csrf = this.getCsrfToken();
     const defaultHeaders = {
       'Content-Type': 'application/json',
-      'Accept': 'application/json'
+      'Accept': 'application/json',
+      ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+      ...(csrf ? { 'X-CSRF-Token': csrf } : {})
     };
 
     try {
       const response = await fetch(url, {
+        credentials: 'include',
         ...options,
         headers: {
           ...defaultHeaders,
@@ -38,21 +58,46 @@ const API = {
     }
   },
 
-  // 0. Authentication
-  login(username, password) {
-    return this.request('/api/auth/login', {
+  // 0. Authentication & User Management
+  async login(username, password) {
+    const res = await this.request('/api/auth/login', {
       method: 'POST',
       body: JSON.stringify({ username, password })
     });
+    if (res?.session_token) {
+      this.setToken(res.session_token);
+      if (res.csrf_token) this.setCsrfToken(res.csrf_token);
+    }
+    return res;
   },
-  logout() {
-    return this.request('/api/auth/logout', {
-      method: 'POST',
-      body: JSON.stringify({})
-    });
+  async logout() {
+    try {
+      await this.request('/api/auth/logout', {
+        method: 'POST',
+        body: JSON.stringify({})
+      });
+    } finally {
+      this.setToken('');
+      this.setCsrfToken('');
+    }
   },
   getAuthMe() {
     return this.request('/api/auth/me');
+  },
+  changePassword(oldPassword, newPassword) {
+    return this.request('/api/auth/change-password', {
+      method: 'POST',
+      body: JSON.stringify({ old_password: oldPassword, new_password: newPassword })
+    });
+  },
+  getUsers() {
+    return this.request('/api/auth/users');
+  },
+  createUser(username, password, role = 'OPERATOR') {
+    return this.request('/api/auth/users', {
+      method: 'POST',
+      body: JSON.stringify({ username, password, role })
+    });
   },
 
   // 1. System & Safety
@@ -88,6 +133,27 @@ const API = {
   getDecisionTraces(tradeId = null) {
     const q = tradeId ? `?trade_id=${encodeURIComponent(tradeId)}` : '';
     return this.request(`/api/trading/decision-traces${q}`);
+  },
+  closePosition(tradeId, reason = 'manual_operator') {
+    return this.request('/api/trading/positions/close', {
+      method: 'POST',
+      body: JSON.stringify({ trade_id: tradeId, reason })
+    });
+  },
+  createManualOrder(params) {
+    return this.request('/api/trading/orders/create', {
+      method: 'POST',
+      body: JSON.stringify(params)
+    });
+  },
+  cancelOrder(orderId) {
+    return this.request('/api/trading/orders/cancel', {
+      method: 'POST',
+      body: JSON.stringify({ order_id: orderId })
+    });
+  },
+  getTradesCsvUrl() {
+    return `${this.baseUrl}/api/trading/trades/export-csv`;
   },
 
   // 3. Markets & Charting

@@ -280,3 +280,77 @@ class AuthManager:
             "credential_file": self.users_file,
             "note": "Change this password immediately upon first login.",
         }
+
+    def sync_env_admin(self) -> Optional[Dict[str, Any]]:
+        """
+        Synchronizes Super Admin account from environment variables if set:
+        Checks CUANIMUS_ADMIN_USER / API_SERVER_USERNAME / ADMIN_USERNAME
+        and CUANIMUS_ADMIN_PASSWORD / API_SERVER_PASSWORD / ADMIN_PASSWORD.
+        """
+        username = (
+            os.getenv("CUANIMUS_ADMIN_USER")
+            or os.getenv("API_SERVER_USERNAME")
+            or os.getenv("ADMIN_USERNAME")
+            or "admin"
+        ).strip()
+        password = (
+            os.getenv("CUANIMUS_ADMIN_PASSWORD")
+            or os.getenv("API_SERVER_PASSWORD")
+            or os.getenv("ADMIN_PASSWORD")
+            or ""
+        ).strip()
+
+        if not password:
+            return None
+
+        users = self._load_users()
+        user = users.get(username)
+
+        # Check if user needs to be created or password updated
+        if not user or not verify_password(password, user.get("password_hash", "")):
+            users[username] = {
+                "username": username,
+                "password_hash": hash_password(password),
+                "role": UserRole.ADMIN.value,
+                "created_at": user.get("created_at") if user else datetime.now(timezone.utc).isoformat(),
+                "last_login": user.get("last_login") if user else None,
+                "source": "env",
+            }
+            self._save_users(users)
+            logger.info(f"Synchronized Super Admin user '{username}' from environment variables")
+
+        return {
+            "username": username,
+            "role": UserRole.ADMIN.value,
+            "source": "env",
+        }
+
+    def list_users(self) -> List[Dict[str, Any]]:
+        """Returns safe user listing without password hashes."""
+        users = self._load_users()
+        return [
+            {
+                "username": u["username"],
+                "role": u.get("role", UserRole.VIEWER.value),
+                "created_at": u.get("created_at"),
+                "last_login": u.get("last_login"),
+                "source": u.get("source", "db"),
+            }
+            for u in users.values()
+        ]
+
+    def update_password(self, username: str, old_password: str, new_password: str) -> bool:
+        """Updates user password after verifying current password."""
+        if not new_password or len(new_password) < 6:
+            raise ValueError("New password must be at least 6 characters long")
+
+        users = self._load_users()
+        user = users.get(username)
+        if not user or not verify_password(old_password, user.get("password_hash", "")):
+            raise PermissionError("Current password incorrect")
+
+        user["password_hash"] = hash_password(new_password)
+        users[username] = user
+        self._save_users(users)
+        logger.info(f"Password updated for user '{username}'")
+        return True

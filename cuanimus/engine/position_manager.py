@@ -329,3 +329,93 @@ class PositionManager:
                     logger.warning(f"Failed to dispatch Telegram exit notification: {tg_err}")
 
         return exits_executed
+
+    def close_position_by_id(
+        self,
+        trade_id: int,
+        exit_price: Optional[float] = None,
+        reason: str = "manual_operator",
+    ) -> Dict[str, Any]:
+        """
+        Manually closes an open position by trade ID.
+        Records market exit order, calculates realized PnL, updates DB,
+        and dispatches a Telegram notification.
+        """
+        tr = self.db.query_one("SELECT * FROM trades WHERE id = ? AND is_open = 1", (trade_id,))
+        if not tr:
+            raise ValueError(f"Open trade #{trade_id} not found or already closed")
+
+        pair = tr["pair"]
+        open_rate = float(tr["open_rate"] or 0.0)
+        amount = float(tr["amount"] or 1.0)
+        strategy = tr.get("strategy", "manual")
+        cur_price = exit_price if (exit_price and exit_price > 0) else float(tr.get("close_rate") or open_rate)
+        now_str = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+
+        profit_pct = (cur_price - open_rate) / open_rate if open_rate > 0 else 0.0
+        profit_abs = (cur_price - open_rate) * amount
+
+        # Update trade record
+        sql_close = """
+        UPDATE trades SET
+            is_open = 0,
+            close_rate = ?,
+            close_date = ?,
+            close_profit = ?,
+            close_profit_abs = ?,
+            exit_reason = ?,
+            exit_order_status = 'FILLED'
+        WHERE id = ?
+        """
+        self.db.execute(sql_close, (
+            cur_price, now_str, profit_pct, profit_abs, reason, trade_id
+        ))
+
+        # Create exit order
+        exit_oid = f"ORD_MANUAL_EXIT_{uuid.uuid4().hex[:10]}"
+        sql_exit_order = """
+        INSERT INTO orders (
+            ft_trade_id, ft_order_side, ft_pair, ft_is_open, ft_amount, ft_price,
+            order_id, status, symbol, order_type, side,
+            price, average, amount, filled, remaining, cost,
+            order_date, order_filled_date, ft_fee_base
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """
+        self.db.execute(sql_exit_order, (
+            trade_id, "sell", pair, 0, amount, cur_price,
+            exit_oid, "FILLED", pair, "MARKET", "SELL",
+            cur_price, cur_price, amount, amount, 0.0, amount * cur_price,
+            now_str, now_str, 0.0
+        ))
+
+        exit_info = {
+            "trade_id": trade_id,
+            "symbol": pair,
+            "exit_reason": reason,
+            "entry_price": open_rate,
+            "exit_price": cur_price,
+            "profit_abs": round(profit_abs, 4),
+            "profit_pct": round(profit_pct * 100.0, 2),
+            "strategy": strategy,
+            "closed_at": now_str,
+            "status": "CLOSED",
+        }
+        logger.info(f"[PositionManager] Operator manually closed trade #{trade_id} ({pair}): {profit_abs:+.4f} USDT")
+
+        # Telegram alert
+        try:
+            icon = "🎯" if profit_abs >= 0 else "🛑"
+            tg_msg = (
+                f"{icon} <b>CUANIMUS MANUAL POSITION CLOSE</b>\n\n"
+                f"• <b>Pair:</b> <code>{pair}</code>\n"
+                f"• <b>Action:</b> <code>OPERATOR FLATTEN</code>\n"
+                f"• <b>Entry:</b> <code>{open_rate:.4f}</code>\n"
+                f"• <b>Exit:</b> <code>{cur_price:.4f}</code>\n"
+                f"• <b>PnL:</b> <b>{profit_abs:+.2f} USDT ({profit_pct * 100.0:+.2f}%)</b>\n"
+                f"• <b>Time:</b> <code>{now_str}</code>"
+            )
+            self.telegram.send_alert(tg_msg)
+        except Exception as tg_err:
+            logger.warning(f"Failed to dispatch Telegram manual exit alert: {tg_err}")
+
+        return exit_info

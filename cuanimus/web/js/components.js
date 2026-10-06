@@ -115,6 +115,134 @@ const Modals = {
     document.getElementById('modal-login').addEventListener('click', e => { if (e.target.id === 'modal-login') this.close('modal-login'); });
   },
 
+  // ─── CHANGE PASSWORD MODAL ────────────────────────────────────
+  showChangePasswordModal() {
+    this._remove('modal-change-password');
+    document.body.insertAdjacentHTML('beforeend', `
+      <div id="modal-change-password" class="modal-overlay active">
+        <div class="modal-box" style="max-width:420px">
+          <div class="modal-header">
+            <div class="modal-title">🔑 CHANGE ACCOUNT PASSWORD</div>
+            <button class="modal-close" onclick="Modals.close('modal-change-password')">✕</button>
+          </div>
+          <div class="modal-body">
+            <div style="margin-bottom:12px">
+              <label class="form-label">Current Password</label>
+              <input type="password" id="cp-old" class="form-input" placeholder="Current password">
+            </div>
+            <div style="margin-bottom:12px">
+              <label class="form-label">New Password (min 6 chars)</label>
+              <input type="password" id="cp-new" class="form-input" placeholder="New strong password">
+            </div>
+            <div style="margin-bottom:6px">
+              <label class="form-label">Confirm New Password</label>
+              <input type="password" id="cp-confirm" class="form-input" placeholder="Repeat new password">
+            </div>
+            <div id="cp-err-msg" style="color:var(--bear);font-size:11px;margin-top:6px;display:none"></div>
+          </div>
+          <div class="modal-footer">
+            <button class="btn" onclick="Modals.close('modal-change-password')">Cancel</button>
+            <button class="btn btn-primary" id="btn-submit-cp">Update Password</button>
+          </div>
+        </div>
+      </div>
+    `);
+
+    document.getElementById('btn-submit-cp').addEventListener('click', async () => {
+      const oldP = document.getElementById('cp-old').value;
+      const newP = document.getElementById('cp-new').value;
+      const confP = document.getElementById('cp-confirm').value;
+      const errEl = document.getElementById('cp-err-msg');
+      errEl.style.display = 'none';
+
+      if (!oldP || !newP) {
+        errEl.textContent = 'All fields are required';
+        errEl.style.display = 'block';
+        return;
+      }
+      if (newP !== confP) {
+        errEl.textContent = 'New passwords do not match';
+        errEl.style.display = 'block';
+        return;
+      }
+      try {
+        await API.changePassword(oldP, newP);
+        Toast.success('Password updated successfully!');
+        Modals.close('modal-change-password');
+      } catch (err) {
+        errEl.textContent = err.message || 'Failed to update password';
+        errEl.style.display = 'block';
+      }
+    });
+    document.getElementById('modal-change-password').addEventListener('click', e => {
+      if (e.target.id === 'modal-change-password') this.close('modal-change-password');
+    });
+  },
+
+  // ─── CREATE OPERATOR USER MODAL ───────────────────────────────
+  showUserModal(onSuccess = null) {
+    this._remove('modal-create-user');
+    document.body.insertAdjacentHTML('beforeend', `
+      <div id="modal-create-user" class="modal-overlay active">
+        <div class="modal-box" style="max-width:440px">
+          <div class="modal-header">
+            <div class="modal-title">👤 CREATE OPERATOR ACCOUNT</div>
+            <button class="modal-close" onclick="Modals.close('modal-create-user')">✕</button>
+          </div>
+          <div class="modal-body">
+            <div style="margin-bottom:12px">
+              <label class="form-label">Username</label>
+              <input type="text" id="cu-user" class="form-input" placeholder="e.g. operator_alex">
+            </div>
+            <div style="margin-bottom:12px">
+              <label class="form-label">Initial Password</label>
+              <input type="password" id="cu-pass" class="form-input" placeholder="••••••••••">
+            </div>
+            <div style="margin-bottom:6px">
+              <label class="form-label">Role</label>
+              <select id="cu-role" class="form-input">
+                <option value="OPERATOR">OPERATOR — Can run & control trading sessions</option>
+                <option value="VIEWER">VIEWER — Read-only observation</option>
+                <option value="ADMIN">ADMIN — Full configuration & super admin</option>
+              </select>
+            </div>
+            <div id="cu-err-msg" style="color:var(--bear);font-size:11px;margin-top:6px;display:none"></div>
+          </div>
+          <div class="modal-footer">
+            <button class="btn" onclick="Modals.close('modal-create-user')">Cancel</button>
+            <button class="btn btn-primary" id="btn-submit-cu">Create Account</button>
+          </div>
+        </div>
+      </div>
+    `);
+
+    document.getElementById('btn-submit-cu').addEventListener('click', async () => {
+      const u = document.getElementById('cu-user').value.trim();
+      const p = document.getElementById('cu-pass').value;
+      const r = document.getElementById('cu-role').value;
+      const errEl = document.getElementById('cu-err-msg');
+      errEl.style.display = 'none';
+
+      if (!u || !p) {
+        errEl.textContent = 'Username and password required';
+        errEl.style.display = 'block';
+        return;
+      }
+      try {
+        await API.createUser(u, p, r);
+        Toast.success(`User '${u}' created with role ${r}!`);
+        Modals.close('modal-create-user');
+        if (onSuccess) onSuccess();
+      } catch (err) {
+        errEl.textContent = err.message || 'Failed to create user';
+        errEl.style.display = 'block';
+      }
+    });
+    document.getElementById('modal-create-user').addEventListener('click', e => {
+      if (e.target.id === 'modal-create-user') this.close('modal-create-user');
+    });
+  },
+
   // ─── EMERGENCY STOP MODAL ─────────────────────────────────────
   showEmergencyStopModal() {
     this._remove('modal-emergency-stop');
@@ -650,6 +778,49 @@ const CommandPalette = {
   }
 };
 
+// ═══════════════════════════════════════════════════════════════
+// 4. SOUND EFFECTS SYNTHESIZER (Web Audio API)
+// ═══════════════════════════════════════════════════════════════
+const SoundEffects = {
+  ctx: null,
+  init() {
+    if (!this.ctx && typeof window !== 'undefined' && (window.AudioContext || window.webkitAudioContext)) {
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      this.ctx = new AudioCtx();
+    }
+  },
+  play(type = 'trade') {
+    try {
+      this.init();
+      if (!this.ctx) return;
+      if (this.ctx.state === 'suspended') this.ctx.resume();
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      const now = this.ctx.currentTime;
+      if (type === 'trade') {
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(587.33, now);
+        osc.frequency.exponentialRampToValueAtTime(880, now + 0.12);
+        gain.gain.setValueAtTime(0.12, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.28);
+        osc.start(now);
+        osc.stop(now + 0.3);
+      } else if (type === 'alert') {
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(440, now);
+        osc.frequency.setValueAtTime(330, now + 0.15);
+        gain.gain.setValueAtTime(0.18, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.45);
+        osc.start(now);
+        osc.stop(now + 0.46);
+      }
+    } catch (_) {}
+  }
+};
+
 window.Toast = Toast;
 window.Modals = Modals;
 window.CommandPalette = CommandPalette;
+window.SoundEffects = SoundEffects;

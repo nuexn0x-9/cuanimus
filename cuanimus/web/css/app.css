@@ -921,6 +921,79 @@ textarea.form-input, textarea.cmd-input {
 .field-group-label-agent    { font-size: 11px; color: var(--lavender); font-weight: 700; margin-bottom: 6px; }
 
 /* ══════════════════════════════════════════════════════════
+   GUEST BANNER & MOBILE HAMBURGER
+══════════════════════════════════════════════════════════ */
+.btn-hamburger {
+  display: none;
+  font-size: 16px;
+  padding: 4px 8px;
+  background: var(--bg-s2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  margin-right: 6px;
+}
+.guest-banner {
+  background: var(--yellow-dim);
+  border-bottom: 1px solid var(--yellow-border);
+  padding: 8px 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+  color: var(--yellow);
+  z-index: 90;
+  flex-shrink: 0;
+}
+.nav-backdrop {
+  display: none;
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(4, 6, 12, 0.7);
+  backdrop-filter: blur(2px);
+  z-index: 105;
+}
+.nav-backdrop.active { display: block; }
+
+/* ── Order Entry Widget ── */
+.order-entry-box {
+  background: var(--bg-s2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 14px;
+  margin-top: 14px;
+}
+.side-selector {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.side-btn {
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  font-weight: 700;
+  font-size: 12px;
+  text-align: center;
+  cursor: pointer;
+  border: 1px solid var(--border);
+  background: var(--bg-s1);
+  color: var(--text-sec);
+  transition: all 0.15s ease;
+}
+.side-btn.active-long {
+  background: var(--mint);
+  color: var(--mint-text);
+  border-color: var(--mint);
+  box-shadow: var(--mint-glow);
+}
+.side-btn.active-short {
+  background: var(--bear);
+  color: #fff;
+  border-color: var(--bear);
+  box-shadow: 0 0 14px rgba(255, 77, 114, 0.4);
+}
+
+/* ══════════════════════════════════════════════════════════
    RESPONSIVE
 ══════════════════════════════════════════════════════════ */
 @media (max-width: 1024px) {
@@ -929,20 +1002,24 @@ textarea.form-input, textarea.cmd-input {
 }
 
 @media (max-width: 768px) {
-  .app-body { flex-direction: column; }
+  .btn-hamburger { display: inline-flex; }
+  .app-body { flex-direction: column; position: relative; }
   .app-nav {
-    width: 100%; height: auto;
-    flex-direction: row;
-    overflow-x: auto;
-    padding: 6px 8px;
-    border-right: none;
-    border-bottom: 1px solid var(--border);
-    scrollbar-width: none;
+    position: fixed;
+    top: 54px; left: -260px;
+    width: 240px; height: calc(100vh - 54px);
+    z-index: 110;
+    transition: left 0.25s ease;
+    box-shadow: var(--shadow-lg);
+    background: var(--bg-s1);
+  }
+  .app-nav.drawer-open {
+    left: 0;
   }
   .app-nav::-webkit-scrollbar { display: none; }
-  .nav-section-title { display: none; }
-  .nav-item { flex-direction: column; gap: 3px; padding: 6px 8px; font-size: 10px; min-width: 56px; text-align: center; }
-  .nav-item.active { border-left: none; border-bottom: 3px solid var(--mint); padding-left: 8px; }
+  .nav-section-title { display: block; }
+  .nav-item { flex-direction: row; gap: 8px; padding: 10px 14px; font-size: 13px; text-align: left; }
+  .nav-item.active { border-left: 3px solid var(--mint); border-bottom: none; }
   .nav-icon { font-size: 16px; }
   .app-main { padding: 12px 14px; }
   .view-header { flex-direction: column; }
@@ -954,6 +1031,7 @@ textarea.form-input, textarea.cmd-input {
 @media (max-width: 480px) {
   .grid-cards { grid-template-columns: 1fr; }
   .app-header { padding: 0 12px; }
+  .side-selector { grid-template-columns: 1fr 1fr; }
 }
 
 /* ══════════════════════════════════════════════════════════

@@ -256,6 +256,27 @@ class CuanimusHttpHandler(BaseHTTPRequestHandler):
                     })
                 return
 
+            if path == "/api/auth/users":
+                user = self._get_authenticated_user()
+                if not user or user.get("role") != "ADMIN":
+                    self._send_json(403, {"error": "Only ADMIN role may view user management list"})
+                    return
+                self._send_json(200, {"users": self.auth.list_users()})
+                return
+
+            if path == "/api/trading/trades/export-csv":
+                csv_data = self.api.export_trades_csv()
+                csv_bytes = csv_data.encode("utf-8")
+                self.send_response(200)
+                self.send_header("Content-Type", "text/csv; charset=utf-8")
+                self.send_header("Content-Disposition", "attachment; filename=cuanimus_trades.csv")
+                self.send_header("Content-Length", str(len(csv_bytes)))
+                self._send_security_headers()
+                self._send_cors_headers()
+                self.end_headers()
+                self.wfile.write(csv_bytes)
+                return
+
             if path == "/api/system/status":
                 self._send_json(200, self.api.get_system_status())
             elif path == "/api/doctor":
@@ -455,6 +476,70 @@ class CuanimusHttpHandler(BaseHTTPRequestHandler):
             elif path.startswith("/api/trading/profiles/") and (path.endswith("/update") or len(path.split("/")) == 5):
                 prof_id = path.replace("/api/trading/profiles/", "").replace("/update", "")
                 self._send_json(200, self.api.update_trading_profile(prof_id, body))
+            elif path == "/api/trading/positions/close":
+                trade_id = body.get("trade_id")
+                reason = body.get("reason", "manual_operator")
+                if not trade_id:
+                    self._send_json(400, {"error": "Missing trade_id"})
+                    return
+                try:
+                    res = self.api.close_position(int(trade_id), reason=reason)
+                    self._send_json(200, res)
+                except Exception as e:
+                    self._send_json(400, {"error": str(e)})
+            elif path == "/api/trading/orders/create":
+                sym = body.get("symbol", "ETH/USDT:USDT")
+                side = body.get("side", "BUY")
+                otype = body.get("type", "LIMIT")
+                amt = float(body.get("amount", 1.0))
+                price = float(body.get("price", 0.0)) if body.get("price") else None
+                sl_pct = float(body.get("stop_loss_pct", 1.5))
+                tp_pct = float(body.get("take_profit_pct", 3.0))
+                lev = float(body.get("leverage", 3.0))
+                try:
+                    res = self.api.create_manual_order(
+                        symbol=sym, side=side, order_type=otype, amount=amt,
+                        price=price, stop_loss_pct=sl_pct, take_profit_pct=tp_pct, leverage=lev
+                    )
+                    self._send_json(201, res)
+                except Exception as e:
+                    self._send_json(400, {"error": str(e)})
+            elif path == "/api/trading/orders/cancel":
+                oid = body.get("order_id")
+                if not oid:
+                    self._send_json(400, {"error": "Missing order_id"})
+                    return
+                try:
+                    res = self.api.cancel_order(str(oid))
+                    self._send_json(200, res)
+                except Exception as e:
+                    self._send_json(400, {"error": str(e)})
+            elif path == "/api/auth/change-password":
+                user = self._get_authenticated_user()
+                if not user:
+                    self._send_json(401, {"error": "Authentication required"})
+                    return
+                old_p = body.get("old_password", "")
+                new_p = body.get("new_password", "")
+                try:
+                    self.auth.update_password(user["username"], old_p, new_p)
+                    self._send_json(200, {"success": True, "message": "Password updated successfully"})
+                except Exception as e:
+                    self._send_json(400, {"error": str(e)})
+            elif path == "/api/auth/users":
+                user = self._get_authenticated_user()
+                if not user or user.get("role") != "ADMIN":
+                    self._send_json(403, {"error": "Only ADMIN role may create users"})
+                    return
+                new_u = body.get("username", "")
+                new_p = body.get("password", "")
+                new_role = body.get("role", "OPERATOR")
+                try:
+                    role_enum = UserRole(new_role.upper())
+                    res = self.auth.create_user(new_u, new_p, role=role_enum)
+                    self._send_json(201, {"success": True, "user": res})
+                except Exception as e:
+                    self._send_json(400, {"error": str(e)})
             else:
                 self._send_json(404, {"error": "API route not found", "path": path})
         except Exception as e:
@@ -529,6 +614,7 @@ class HttpServerDaemon:
         self.web_static_dir = os.path.join(self.base_dir, "cuanimus", "web")
         self.api_service = ControlPlaneAPI(base_dir=self.base_dir)
         self.auth_manager = AuthManager(base_dir=self.base_dir)
+        self.auth_manager.sync_env_admin()
         self.token_manager = McpTokenManager(base_dir=self.base_dir)
         self.mcp_server = McpServer()
         from cuanimus.api.telegram import TelegramBotListener

@@ -247,6 +247,100 @@ class ControlPlaneAPI:
 
         return positions
 
+    def close_position(self, trade_id: int, reason: str = "manual_operator") -> Dict[str, Any]:
+        """Manually closes an open trade by ID."""
+        res = self.engine.position_manager.close_position_by_id(trade_id=int(trade_id), reason=reason)
+        self.audit_logger.log_event(
+            agent_id="operator_ui",
+            action="close_position",
+            status="SUCCESS",
+            details=res,
+        )
+        return res
+
+    def create_manual_order(
+        self,
+        symbol: str,
+        side: str,
+        order_type: str = "LIMIT",
+        amount: float = 1.0,
+        price: Optional[float] = None,
+        stop_loss_pct: float = 1.5,
+        take_profit_pct: float = 3.0,
+        leverage: float = 3.0,
+    ) -> Dict[str, Any]:
+        """Creates a manual order in paper/simulated environment."""
+        if not price or price <= 0:
+            p_res = self.get_mark_price(symbol)
+            price = p_res.get("mark_price", 100.0) if isinstance(p_res, dict) else 100.0
+
+        sl = round(price * (1 - (stop_loss_pct / 100.0)), 4) if side.upper() == "BUY" else round(price * (1 + (stop_loss_pct / 100.0)), 4)
+        tp = round(price * (1 + (take_profit_pct / 100.0)), 4) if side.upper() == "BUY" else round(price * (1 - (take_profit_pct / 100.0)), 4)
+        trade_id = self.engine.position_manager.record_entry(
+            symbol=symbol,
+            side=side.upper(),
+            amount=amount,
+            price=price,
+            stop_loss=sl,
+            take_profit=tp,
+            strategy_id="manual_quick_order",
+        )
+        res = {
+            "trade_id": trade_id,
+            "symbol": symbol,
+            "side": side.upper(),
+            "type": order_type.upper(),
+            "price": price,
+            "amount": amount,
+            "stop_loss": sl,
+            "status": "FILLED",
+            "message": f"Manual {side.upper()} order executed for {symbol} @ {price:.4f}",
+        }
+        self.audit_logger.log_event(
+            agent_id="operator_ui",
+            action="create_manual_order",
+            status="EXECUTED",
+            details=res,
+        )
+        return res
+
+    def cancel_order(self, order_id: str) -> Dict[str, Any]:
+        """Cancels an open order."""
+        self.db.execute("UPDATE orders SET status = 'CANCELLED', ft_is_open = 0 WHERE order_id = ? OR id = ?", (order_id, order_id))
+        res = {"order_id": order_id, "status": "CANCELLED", "message": f"Order {order_id} cancelled"}
+        self.audit_logger.log_event(
+            agent_id="operator_ui",
+            action="cancel_order",
+            status="CANCELLED",
+            details=res,
+        )
+        return res
+
+    def export_trades_csv(self) -> str:
+        """Exports closed trades into CSV format."""
+        import csv
+        import io
+        trades = self.get_trades(limit=500)
+        output = io.StringIO()
+        writer = csv.writer(output)
+        writer.writerow(["trade_id", "symbol", "side", "amount", "entry_price", "exit_price", "pnl_usd", "pnl_pct", "exit_reason", "open_time", "close_time", "strategy"])
+        for t in trades:
+            writer.writerow([
+                t.get("trade_id", ""),
+                t.get("symbol", ""),
+                t.get("side", ""),
+                t.get("amount", ""),
+                t.get("entry_price", ""),
+                t.get("exit_price", ""),
+                t.get("pnl_usd", ""),
+                t.get("pnl_pct", ""),
+                t.get("exit_reason", ""),
+                t.get("open_time", ""),
+                t.get("close_time", ""),
+                t.get("strategy", ""),
+            ])
+        return output.getvalue()
+
     def get_orders(self) -> List[Dict[str, Any]]:
         """Returns active and recent orders with full FSM state tracking from database and active sessions."""
         orders = []
