@@ -14,6 +14,7 @@ Strict Invariants:
 6. Global Emergency Stop / Human Kill Switch compliance.
 7. Real-capital live trading is strictly disabled (PAPER / TESTNET only).
 """
+import os
 import time
 import uuid
 import logging
@@ -54,7 +55,7 @@ class AutonomousTradingEngine:
     """
 
     _instance: Optional["AutonomousTradingEngine"] = None
-    _lock = threading.Lock()
+    _lock = threading.RLock()
 
     def __init__(
         self,
@@ -85,6 +86,8 @@ class AutonomousTradingEngine:
         self._tick_interval = 5.0  # Polling cycle interval in seconds
         self._processed_idempotency_keys = set()
         self._cached_prices: Dict[str, float] = {}
+        self._last_cycle_at: Optional[str] = None
+        self._worker_errors_count: int = 0
 
     @classmethod
     def get_instance(cls) -> "AutonomousTradingEngine":
@@ -100,18 +103,26 @@ class AutonomousTradingEngine:
     # -------------------------------------------------------------------------
 
     def start(self) -> None:
-        """Starts the autonomous engine background daemon."""
+        """Starts the autonomous engine background daemon and auto-resumes profiles."""
         with self._lock:
-            if self._running:
-                return
-            self._running = True
-            self._thread = threading.Thread(
-                target=self._worker_loop,
-                daemon=True,
-                name="AutonomousTradingEngineWorker",
-            )
-            self._thread.start()
-            logger.info("[AutonomousTradingEngine] Background worker daemon started successfully.")
+            if not self._running:
+                self._running = True
+                self._thread = threading.Thread(
+                    target=self._worker_loop,
+                    daemon=True,
+                    name="AutonomousTradingEngineWorker",
+                )
+                self._thread.start()
+                logger.info("[AutonomousTradingEngine] Background worker daemon started successfully.")
+
+            # Auto-resume profiles marked with auto_start
+            try:
+                for p in self.store.list_profiles():
+                    if p.enabled and p.auto_start and not p.is_running:
+                        logger.info(f"[AutonomousTradingEngine] Auto-starting profile: {p.name} ({p.profile_id})")
+                        self.start_profile(p.profile_id)
+            except Exception as e:
+                logger.warning(f"Error auto-starting profiles: {e}")
 
     def stop(self) -> None:
         """Gracefully halts the engine daemon."""
@@ -126,6 +137,7 @@ class AutonomousTradingEngine:
         """Main background scheduling loop."""
         logger.info("[AutonomousTradingEngine] Running background worker loop...")
         while self._running:
+            self._last_cycle_at = datetime.now(timezone.utc).isoformat()
             try:
                 # 1. Check Emergency Stop Kill Switch
                 if self.risk_engine.emergency_stop_active:
@@ -143,9 +155,11 @@ class AutonomousTradingEngine:
                     try:
                         self.evaluate_profile_tick(profile)
                     except Exception as e:
+                        self._worker_errors_count += 1
                         logger.error(f"[AutonomousTradingEngine] Error evaluating profile {profile.profile_id}: {e}", exc_info=True)
 
             except Exception as loop_err:
+                self._worker_errors_count += 1
                 logger.error(f"[AutonomousTradingEngine] Uncaught error in worker loop: {loop_err}", exc_info=True)
 
             time.sleep(self._tick_interval)
@@ -642,14 +656,41 @@ class AutonomousTradingEngine:
         running_profiles = [p for p in profiles if p.is_running]
         sessions = self.store.list_sessions(limit=10)
         open_positions = self.position_manager.get_open_positions()
+        traces = self.store.list_traces(limit=100)
+
+        signals_today = len(traces)
+        policy_rejections = sum(1 for t in traces if t.get("policy_result") == "REJECTED")
+        risk_rejections = sum(1 for t in traces if t.get("risk_result") == "REJECTED")
+        orders_executed = sum(1 for t in traces if t.get("execution_status") == "EXECUTED")
+
+        # Enrich running profiles with last evaluation telemetry
+        enriched_running = []
+        for p in running_profiles:
+            p_dict = p.to_dict()
+            sess = self.store.get_active_session_for_profile(p.profile_id)
+            if sess:
+                p_dict["last_evaluation"] = sess.heartbeat
+                p_dict["processed_candles"] = sess.processed_candles
+                p_dict["last_signal"] = (sess.last_decision or {}).get("strategy_signal") or (sess.last_decision or {}).get("ai_decision") or "HOLD"
+            enriched_running.append(p_dict)
 
         return {
             "engine_running": self.is_running(),
             "emergency_stop_active": self.risk_engine.emergency_stop_active,
+            "worker_pid": os.getpid(),
+            "worker_thread": self._thread.name if self._thread and self._thread.is_alive() else "STOPPED",
+            "heartbeat": datetime.now(timezone.utc).isoformat(),
+            "last_cycle_at": self._last_cycle_at,
+            "tick_interval_seconds": self._tick_interval,
             "active_profiles_count": len(running_profiles),
             "total_profiles_count": len(profiles),
             "open_positions_count": len(open_positions),
-            "running_profiles": [p.to_dict() for p in running_profiles],
+            "signals_evaluated_today": signals_today,
+            "rejected_by_policy_today": policy_rejections,
+            "rejected_by_risk_today": risk_rejections,
+            "executed_orders_today": orders_executed,
+            "worker_errors_count": self._worker_errors_count,
+            "running_profiles": enriched_running,
             "recent_sessions": [s.to_dict() for s in sessions],
             "uptime_status": "ONLINE" if self.is_running() else "IDLE",
         }

@@ -122,7 +122,7 @@ class StrategyEvaluator:
             htf = "BEARISH"
             conf = 80.0
         elif adx < 18:
-            reg = MarketRegimeType.COMPRESSION
+            reg = MarketRegimeType.LOW_VOLATILITY
             htf = "NEUTRAL"
             conf = 70.0
         else:

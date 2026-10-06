@@ -275,6 +275,10 @@ class TelegramNotifier:
             logger.warning(f"Telegram dispatch failed with network error: {err_msg}")
             return {"success": False, "error": err_msg}
 
+    def send_alert(self, text: str, parse_mode: str = "HTML", reply_markup: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        """Convenience alias for send_message."""
+        return self.send_message(text=text, parse_mode=parse_mode, reply_markup=reply_markup)
+
     def edit_message_text(
         self,
         text: str,

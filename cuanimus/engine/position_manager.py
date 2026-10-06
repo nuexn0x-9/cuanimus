@@ -128,45 +128,89 @@ class PositionManager:
         oid = order_id or f"ORD_AUT_{uuid.uuid4().hex[:10]}"
         stake_amount = round(amount * price, 4)
 
-        # 1. Insert order
-        sql_order = """
-        INSERT INTO orders (
-            ft_order_side, ft_pair, ft_is_open, ft_amount, ft_price,
-            order_id, status, symbol, order_type, side,
-            price, average, amount, filled, remaining, cost,
-            order_date, order_filled_date, ft_fee_base
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """
-        self.db.execute(sql_order, (
-            side.lower(), symbol, 0, amount, price,
-            oid, "FILLED", symbol, "LIMIT", side.upper(),
-            price, price, amount, amount, 0.0, stake_amount,
-            now_str, now_str, 0.0,
-        ))
+        # Inspect available table columns to adapt dynamically
+        cols_info = self.db.query("PRAGMA table_info(trades)")
+        avail_cols = {c["name"] for c in cols_info} if cols_info else set()
 
-        # 2. Insert trade
-        sql_trade = """
-        INSERT INTO trades (
-            pair, is_open, fee_open, fee_close, open_rate, close_rate,
-            amount, stake_amount, open_date, open_order_id,
-            stop_loss, initial_stop_loss, max_rate, min_rate,
-            strategy, timeframe, created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """
-        self.db.execute(sql_trade, (
-            symbol, 1, 0.0, 0.0, price, price,
-            amount, stake_amount, now_str, oid,
-            stop_loss, stop_loss, price, price,
-            strategy_id, timeframe, now_str,
-        ))
+        trade_data = {
+            "pair": symbol,
+            "is_open": 1,
+            "fee_open": 0.0,
+            "fee_close": 0.0,
+            "open_rate": price,
+            "close_rate": price,
+            "amount": amount,
+            "stake_amount": stake_amount,
+            "open_date": now_str,
+            "stop_loss": stop_loss,
+            "initial_stop_loss": stop_loss,
+            "max_rate": price,
+            "min_rate": price,
+            "strategy": strategy_id,
+            "timeframe": timeframe,
+        }
+        if "exchange" in avail_cols:
+            trade_data["exchange"] = "binance"
+        if "is_short" in avail_cols:
+            trade_data["is_short"] = 1 if side.lower() in ("sell", "short") else 0
+        if "is_stop_loss_trailing" in avail_cols:
+            trade_data["is_stop_loss_trailing"] = 0
+        if "interest_rate" in avail_cols:
+            trade_data["interest_rate"] = 0.0
+        if "record_version" in avail_cols:
+            trade_data["record_version"] = 1
+        if "enter_tag" in avail_cols:
+            trade_data["enter_tag"] = oid
+        if "open_order_id" in avail_cols:
+            trade_data["open_order_id"] = oid
+
+        cols = list(trade_data.keys())
+        placeholders = ", ".join(["?"] * len(cols))
+        col_names = ", ".join(cols)
+        sql_trade = f"INSERT INTO trades ({col_names}) VALUES ({placeholders})"
+        self.db.execute(sql_trade, tuple(trade_data.values()))
 
         # Fetch inserted trade ID
-        r = self.db.query_one("SELECT id FROM trades WHERE open_order_id = ?", (oid,))
-        trade_id = r["id"] if r else 0
+        r = None
+        if "enter_tag" in avail_cols:
+            r = self.db.query_one("SELECT id FROM trades WHERE enter_tag = ? ORDER BY id DESC", (oid,))
+        elif "open_order_id" in avail_cols:
+            r = self.db.query_one("SELECT id FROM trades WHERE open_order_id = ? ORDER BY id DESC", (oid,))
+        if not r:
+            r = self.db.query_one("SELECT MAX(id) as id FROM trades")
+        trade_id = r["id"] if r else 1
 
-        # Update order with ft_trade_id
-        if trade_id > 0:
-            self.db.execute("UPDATE orders SET ft_trade_id = ? WHERE order_id = ?", (trade_id, oid))
+        # 2. Insert order with valid ft_trade_id
+        order_cols_info = self.db.query("PRAGMA table_info(orders)")
+        avail_order_cols = {c["name"] for c in order_cols_info} if order_cols_info else set()
+        order_data = {
+            "ft_trade_id": trade_id,
+            "ft_order_side": side.lower(),
+            "ft_pair": symbol,
+            "ft_is_open": 0,
+            "ft_amount": amount,
+            "ft_price": price,
+            "order_id": oid,
+            "status": "FILLED",
+            "symbol": symbol,
+            "order_type": "LIMIT",
+            "side": side.upper(),
+            "price": price,
+            "average": price,
+            "amount": amount,
+            "filled": amount,
+            "remaining": 0.0,
+            "cost": stake_amount,
+            "order_date": now_str,
+            "order_filled_date": now_str,
+            "ft_fee_base": 0.0,
+        }
+        filtered_order_data = {k: v for k, v in order_data.items() if not avail_order_cols or k in avail_order_cols}
+        o_cols = list(filtered_order_data.keys())
+        o_placeholders = ", ".join(["?"] * len(o_cols))
+        o_col_names = ", ".join(o_cols)
+        sql_order = f"INSERT INTO orders ({o_col_names}) VALUES ({o_placeholders})"
+        self.db.execute(sql_order, tuple(filtered_order_data.values()))
 
         logger.info(f"[PositionManager] Recorded trade entry #{trade_id} for {symbol} @ {price:.4f}, SL={stop_loss:.4f}")
         return trade_id
