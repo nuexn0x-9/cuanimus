@@ -60,6 +60,45 @@ class TestTelegramInteractiveMenu(unittest.TestCase):
         self.assertIn("STATUS DATABASE CUANIMUS", sent_text)
 
     @patch.object(TelegramNotifier, "send_message")
+    def test_route_balance_command(self, mock_send):
+        mock_send.return_value = {"success": True}
+        self.listener._route_command("/balance", self.listener.chat_id)
+        self.assertTrue(mock_send.called)
+        sent_text = mock_send.call_args[0][0]
+        self.assertIn("SALDO & WALLET CUANIMUS", sent_text)
+        self.assertIn("Total Equity", sent_text)
+
+    @patch.object(TelegramNotifier, "send_message")
+    def test_route_daily_command(self, mock_send):
+        mock_send.return_value = {"success": True}
+        self.listener._route_command("/daily", self.listener.chat_id)
+        self.assertTrue(mock_send.called)
+        sent_text = mock_send.call_args[0][0]
+        self.assertIn("KINERJA HARIAN", sent_text)
+
+    @patch.object(TelegramNotifier, "send_message")
+    def test_route_strategy_command(self, mock_send):
+        mock_send.return_value = {"success": True}
+        self.listener._route_command("⚙️ Strategi", self.listener.chat_id)
+        self.assertTrue(mock_send.called)
+        sent_text = mock_send.call_args[0][0]
+        self.assertIn("STRATEGI TRADING KUANTITATIF", sent_text)
+
+    @patch.object(TelegramNotifier, "send_message")
+    def test_route_risk_command(self, mock_send):
+        mock_send.return_value = {"success": True}
+        self.listener._route_command("🛡️ Risk", self.listener.chat_id)
+        self.assertTrue(mock_send.called)
+        sent_text = mock_send.call_args[0][0]
+        self.assertIn("RISK ENGINE & CIRCUIT BREAKER", sent_text)
+
+    @patch.object(TelegramNotifier, "send_message")
+    def test_route_orders_command(self, mock_send):
+        mock_send.return_value = {"success": True}
+        self.listener._route_command("📋 Orders", self.listener.chat_id)
+        self.assertTrue(mock_send.called)
+
+    @patch.object(TelegramNotifier, "send_message")
     def test_unauthorized_sender_rejected(self, mock_send):
         mock_send.return_value = {"success": True}
         # Fake update from rogue sender
