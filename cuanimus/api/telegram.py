@@ -17,6 +17,7 @@ import logging
 import threading
 import urllib.request
 import urllib.error
+import socket
 from datetime import datetime, timezone
 from typing import Dict, Any, Optional, List
 
@@ -461,6 +462,9 @@ class TelegramBotListener:
             {"command": "agents", "description": "Status AI Agent & MCP tools"},
             {"command": "db", "description": "Status database SQLite / PostgreSQL"},
             {"command": "auto", "description": "Status Autonomous Trading Engine & Profil"},
+            {"command": "close", "description": "Tutup posisi terbuka (/close [id] atau /close all)"},
+            {"command": "buy", "description": "Buka posisi BUY (/buy PAIR AMOUNT [PRICE])"},
+            {"command": "sell", "description": "Buka posisi SELL (/sell PAIR AMOUNT [PRICE])"},
             {"command": "emergency_stop", "description": "Aktifkan Kill Switch darurat"},
             {"command": "reset_stop", "description": "Reset Kill Switch darurat"},
         ]
@@ -492,8 +496,8 @@ class TelegramBotListener:
                                 self._handle_callback_query(upd["callback_query"])
                             elif "message" in upd:
                                 self._handle_update(upd)
-            except urllib.error.URLError:
-                time.sleep(3.0)
+            except (urllib.error.URLError, TimeoutError, socket.timeout):
+                time.sleep(1.0)
             except Exception as e:
                 logger.warning(f"Error in Telegram poller: {e}")
                 time.sleep(2.0)
@@ -614,7 +618,7 @@ class TelegramBotListener:
                 text=self._format_positions(),
                 message_id=message_id,
                 chat_id=sender_id,
-                reply_markup=self._make_nav_markup("view:positions", "menu:market"),
+                reply_markup=self._make_positions_markup(),
             )
         elif data == "view:daily":
             self.notifier.edit_message_text(
@@ -673,7 +677,7 @@ class TelegramBotListener:
                 text=self._format_auto_engine(),
                 message_id=message_id,
                 chat_id=sender_id,
-                reply_markup=self._make_nav_markup("view:auto_engine", "menu:strategy"),
+                reply_markup=self._make_auto_engine_markup(),
             )
         elif data == "action:kill":
             self._execute_inline_emergency_stop(message_id, sender_id)
@@ -682,6 +686,88 @@ class TelegramBotListener:
         elif data.startswith("action:db:"):
             target = data.split(":")[-1]
             self._execute_inline_db_switch(target, message_id, sender_id)
+        elif data.startswith("action:close_pos:"):
+            try:
+                tid = int(data.split(":")[-1])
+                self._execute_inline_close_position(tid, message_id, sender_id)
+            except Exception as e:
+                self.notifier.edit_message_text(f"❌ Error: {e}", message_id=message_id, chat_id=sender_id, reply_markup=self._make_positions_markup())
+        elif data == "action:close_all_pos":
+            self._execute_inline_close_all_positions(message_id, sender_id)
+        elif data.startswith("action:auto:start:"):
+            pid = data.split(":")[-1]
+            self._execute_inline_auto_start(pid, message_id, sender_id)
+        elif data.startswith("action:auto:stop:"):
+            pid = data.split(":")[-1]
+            self._execute_inline_auto_stop(pid, message_id, sender_id)
+        elif data == "action:auto:tick_all":
+            self._execute_inline_auto_tick_all(message_id, sender_id)
+
+    def _make_positions_markup(self) -> Dict[str, Any]:
+        buttons = []
+        if self.api:
+            try:
+                positions = self.api.get_positions()
+                for p in positions[:4]:
+                    tid = p.get("id") or p.get("trade_id")
+                    sym = p.get("symbol", "").split(":")[0]
+                    if tid:
+                        buttons.append([{"text": f"❌ Tutup {sym} (#{tid})", "callback_data": f"action:close_pos:{tid}"}])
+                if len(positions) > 1:
+                    buttons.append([{"text": "🚨 Tutup Semua Posisi", "callback_data": "action:close_all_pos"}])
+            except Exception:
+                pass
+        buttons.append([
+            {"text": "🔄 Refresh", "callback_data": "view:positions"},
+            {"text": "◀️ Kembali", "callback_data": "menu:market"},
+        ])
+        buttons.append([
+            {"text": "🏠 Menu Utama", "callback_data": "menu:root"}
+        ])
+        return {"inline_keyboard": buttons}
+
+    def _make_auto_engine_markup(self) -> Dict[str, Any]:
+        buttons = []
+        if self.api:
+            try:
+                status = self.api.get_autonomous_engine_status()
+                profiles = self.api.list_trading_profiles()
+                running_ids = {p.get("profile_id") for p in status.get("running_profiles", [])}
+
+                inactive = [p for p in profiles if p.get("profile_id") not in running_ids]
+                active = [p for p in profiles if p.get("profile_id") in running_ids]
+
+                if inactive:
+                    row = []
+                    for p in inactive[:2]:
+                        pid = p["profile_id"]
+                        sym = p.get("symbol", "").split(":")[0]
+                        row.append({"text": f"▶️ Mulai {sym}", "callback_data": f"action:auto:start:{pid}"})
+                    buttons.append(row)
+
+                if active:
+                    row = []
+                    for p in active[:2]:
+                        pid = p["profile_id"]
+                        sym = p.get("symbol", "").split(":")[0]
+                        row.append({"text": f"⏹️ Stop {sym}", "callback_data": f"action:auto:stop:{pid}"})
+                    buttons.append(row)
+
+                if active:
+                    buttons.append([
+                        {"text": "⚡ Force Eval (Tick)", "callback_data": "action:auto:tick_all"}
+                    ])
+            except Exception:
+                pass
+
+        buttons.append([
+            {"text": "🔄 Refresh", "callback_data": "view:auto_engine"},
+            {"text": "◀️ Kembali", "callback_data": "menu:strategy"},
+        ])
+        buttons.append([
+            {"text": "🏠 Menu Utama", "callback_data": "menu:root"}
+        ])
+        return {"inline_keyboard": buttons}
 
     def _make_nav_markup(self, refresh_cb: str, back_cb: str = "menu:root") -> Dict[str, Any]:
         return {
@@ -816,6 +902,44 @@ class TelegramBotListener:
         # 18. Reset Emergency Stop
         elif cmd in ("/reset_stop", "/reset", "🔄 reset stop", "reset stop", "reset"):
             self._handle_reset_stop(sender_id)
+
+        # 19. Close Position (/close [trade_id|all])
+        elif cmd.startswith("/close") or cmd in ("close", "tutup posisi", "close position"):
+            parts = text.split()
+            target = parts[1] if len(parts) > 1 else ""
+            self._handle_close_command(target, sender_id)
+
+        # 20. Manual Buy Order (/buy SYMBOL AMOUNT [PRICE])
+        elif cmd.startswith("/buy"):
+            self._handle_manual_order("BUY", text, sender_id)
+
+        # 21. Manual Sell Order (/sell SYMBOL AMOUNT [PRICE])
+        elif cmd.startswith("/sell"):
+            self._handle_manual_order("SELL", text, sender_id)
+
+        # 22. Cancel Order (/cancel ORDER_ID)
+        elif cmd.startswith("/cancel"):
+            parts = text.split()
+            oid = parts[1] if len(parts) > 1 else ""
+            self._handle_cancel_command(oid, sender_id)
+
+        # 23. Autonomous Profile Start (/auto_start [PROFILE_ID])
+        elif cmd.startswith("/auto_start"):
+            parts = text.split()
+            pid = parts[1] if len(parts) > 1 else ""
+            self._handle_auto_start_command(pid, sender_id)
+
+        # 24. Autonomous Profile Stop (/auto_stop [PROFILE_ID])
+        elif cmd.startswith("/auto_stop"):
+            parts = text.split()
+            pid = parts[1] if len(parts) > 1 else ""
+            self._handle_auto_stop_command(pid, sender_id)
+
+        # 25. Autonomous Force Tick (/auto_tick [PROFILE_ID])
+        elif cmd.startswith("/auto_tick"):
+            parts = text.split()
+            pid = parts[1] if len(parts) > 1 else ""
+            self._handle_auto_tick_command(pid, sender_id)
 
         else:
             self.notifier.send_message(
@@ -1214,12 +1338,19 @@ class TelegramBotListener:
             "• <code>/market</code> — Live ticker Binance Futures\n"
             "• <code>/ticker [PAIR]</code> — Detail harga spesifik\n"
             "• <code>/positions</code> — Posisi trading aktif\n"
+            "• <code>/close [id|all]</code> — Tutup posisi terbuka\n"
+            "• <code>/buy [PAIR] [AMOUNT] [PRICE]</code> — Order BUY manual\n"
+            "• <code>/sell [PAIR] [AMOUNT] [PRICE]</code> — Order SELL manual\n"
+            "• <code>/cancel [order_id]</code> — Batalkan order aktif\n"
             "• <code>/daily</code> — Kinerja & PnL harian\n"
             "• <code>/orders</code> — 5 order terakhir\n"
             "• <code>/signal [PAIR]</code> — Sinyal strategi V2A\n"
             "• <code>/strategy</code> — Katalog strategi\n"
             "• <code>/risk</code> — Parameter risk engine\n"
             "• <code>/agents</code> — Status AI & MCP\n"
+            "• <code>/auto</code> — Status Autonomous Trading Engine\n"
+            "• <code>/auto_start [id]</code> — Jalankan profil auto\n"
+            "• <code>/auto_stop [id]</code> — Hentikan profil auto\n"
             "• <code>/ai [tanya]</code> — Tanya AI Copilot\n"
             "• <code>/db</code> — Status database\n"
             "• <code>/kill</code> — Emergency Stop seketika\n"
@@ -1312,6 +1443,102 @@ class TelegramBotListener:
         }
         self.notifier.edit_message_text(text=msg, message_id=message_id, chat_id=sender_id, reply_markup=markup)
 
+    def _execute_inline_close_position(self, trade_id: int, message_id: int, sender_id: str):
+        if not self.api:
+            return
+        try:
+            res = self.api.close_position(trade_id=trade_id, reason="telegram_operator")
+            sym = res.get("symbol", "")
+            pnl_usd = res.get("profit_abs", 0.0)
+            pnl_pct = res.get("profit_pct", 0.0)
+            pnl_bullet = "🟢" if pnl_usd >= 0 else "🔴"
+            msg = (
+                f"✅ <b>POSISI BERHASIL DITUTUP</b>\n\n"
+                f"• <b>Trade ID:</b> <code>#{trade_id}</code>\n"
+                f"• <b>Pair:</b> <code>{sym}</code>\n"
+                f"• <b>Exit Price:</b> <code>${res.get('exit_price', 0):,.4f}</code>\n"
+                f"• <b>Realized PnL:</b> {pnl_bullet} <b>{pnl_usd:+.2f} USDT ({pnl_pct:+.2f}%)</b>\n"
+                f"• <b>Alasan:</b> <code>{res.get('exit_reason', 'manual')}</code>\n"
+                f"• <b>Status:</b> <code>CLOSED</code>"
+            )
+            self.notifier.edit_message_text(text=msg, message_id=message_id, chat_id=sender_id, reply_markup=self._make_positions_markup())
+        except Exception as e:
+            self.notifier.edit_message_text(text=f"❌ Gagal menutup posisi #{trade_id}: {e}", message_id=message_id, chat_id=sender_id, reply_markup=self._make_positions_markup())
+
+    def _execute_inline_close_all_positions(self, message_id: int, sender_id: str):
+        if not self.api:
+            return
+        positions = self.api.get_positions()
+        if not positions:
+            self.notifier.edit_message_text(text="ℹ️ Tidak ada posisi terbuka untuk ditutup.", message_id=message_id, chat_id=sender_id, reply_markup=self._make_positions_markup())
+            return
+        closed = []
+        for p in positions:
+            tid = p.get("id") or p.get("trade_id")
+            if tid:
+                try:
+                    r = self.api.close_position(trade_id=int(tid), reason="telegram_close_all")
+                    closed.append(f"#{tid} {r.get('symbol', '')}: {r.get('profit_abs', 0):+.2f} USDT")
+                except Exception as ex:
+                    closed.append(f"#{tid} Gagal: {ex}")
+        summary = "\n".join([f"• {c}" for c in closed])
+        msg = f"🚨 <b>SEMUA POSISI DITUTUP</b>\n\n{summary}"
+        self.notifier.edit_message_text(text=msg, message_id=message_id, chat_id=sender_id, reply_markup=self._make_positions_markup())
+
+    def _execute_inline_auto_start(self, profile_id: str, message_id: int, sender_id: str):
+        if not self.api:
+            return
+        try:
+            res = self.api.start_trading_profile(profile_id)
+            p = self.api.get_trading_profile(profile_id) or {}
+            sym = p.get("symbol", profile_id)
+            msg = (
+                f"🚀 <b>AUTONOMOUS PROFILE DIMULAI</b>\n\n"
+                f"• <b>Profil:</b> <code>{p.get('name', profile_id)}</code>\n"
+                f"• <b>Pair:</b> <code>{sym}</code> • {p.get('timeframe', '15m')}\n"
+                f"• <b>Mode:</b> <code>{p.get('decision_mode', 'strategy').upper()}</code>\n"
+                f"• <b>Status:</b> 🟢 RUNNING\n\n"
+                f"Engine loop aktif memantau closed candles & sinyal."
+            )
+            self.notifier.edit_message_text(text=msg, message_id=message_id, chat_id=sender_id, reply_markup=self._make_auto_engine_markup())
+        except Exception as e:
+            self.notifier.edit_message_text(text=f"❌ Gagal memulai profil {profile_id}: {e}", message_id=message_id, chat_id=sender_id, reply_markup=self._make_auto_engine_markup())
+
+    def _execute_inline_auto_stop(self, profile_id: str, message_id: int, sender_id: str):
+        if not self.api:
+            return
+        try:
+            res = self.api.stop_trading_profile(profile_id)
+            p = self.api.get_trading_profile(profile_id) or {}
+            msg = (
+                f"⏹️ <b>AUTONOMOUS PROFILE DIHENTIKAN</b>\n\n"
+                f"• <b>Profil:</b> <code>{p.get('name', profile_id)}</code>\n"
+                f"• <b>Status:</b> ⚪ STOPPED"
+            )
+            self.notifier.edit_message_text(text=msg, message_id=message_id, chat_id=sender_id, reply_markup=self._make_auto_engine_markup())
+        except Exception as e:
+            self.notifier.edit_message_text(text=f"❌ Gagal menghentikan profil {profile_id}: {e}", message_id=message_id, chat_id=sender_id, reply_markup=self._make_auto_engine_markup())
+
+    def _execute_inline_auto_tick_all(self, message_id: int, sender_id: str):
+        if not self.api:
+            return
+        try:
+            status = self.api.get_autonomous_engine_status()
+            running = status.get("running_profiles", [])
+            if not running:
+                self.notifier.edit_message_text(text="ℹ️ Tidak ada profil yang sedang berjalan untuk dievaluasi.", message_id=message_id, chat_id=sender_id, reply_markup=self._make_auto_engine_markup())
+                return
+            ticked = []
+            for r in running:
+                pid = r.get("profile_id")
+                if pid:
+                    tres = self.api.trigger_profile_tick(pid)
+                    ticked.append(f"• <b>{r.get('symbol', pid)}:</b> {tres.get('message', 'Evaluasi selesai')}")
+            msg = f"⚡ <b>EVALUASI PAKSA (TICK) BERHASIL</b>\n\n" + "\n".join(ticked)
+            self.notifier.edit_message_text(text=msg, message_id=message_id, chat_id=sender_id, reply_markup=self._make_auto_engine_markup())
+        except Exception as e:
+            self.notifier.edit_message_text(text=f"❌ Gagal evaluasi tick: {e}", message_id=message_id, chat_id=sender_id, reply_markup=self._make_auto_engine_markup())
+
     # -------------------------------------------------------------------------
     # COMMAND HANDLERS (Invoked by text commands)
     # -------------------------------------------------------------------------
@@ -1334,7 +1561,7 @@ class TelegramBotListener:
 
     def _handle_positions(self, sender_id: str):
         text = self._format_positions()
-        self.notifier.send_message(text, reply_markup=self._make_nav_markup("view:positions", "menu:market"), chat_id=sender_id)
+        self.notifier.send_message(text, reply_markup=self._make_positions_markup(), chat_id=sender_id)
 
     def _handle_daily(self, sender_id: str):
         text = self._format_daily()
@@ -1456,4 +1683,174 @@ class TelegramBotListener:
 
     def _handle_auto_engine(self, sender_id: str):
         text = self._format_auto_engine()
-        self.notifier.send_message(text, reply_markup=self._make_nav_markup("view:auto_engine", "menu:strategy"), chat_id=sender_id)
+        self.notifier.send_message(text, reply_markup=self._make_auto_engine_markup(), chat_id=sender_id)
+
+    def _handle_close_command(self, target: str, sender_id: str):
+        if not self.api:
+            return
+        positions = self.api.get_positions()
+        if not positions:
+            self.notifier.send_message("ℹ️ Tidak ada posisi terbuka saat ini.", reply_markup=self._make_positions_markup(), chat_id=sender_id)
+            return
+
+        tgt = target.strip().lower()
+        if tgt == "all":
+            closed = []
+            for p in positions:
+                tid = p.get("id") or p.get("trade_id")
+                if tid:
+                    try:
+                        r = self.api.close_position(trade_id=int(tid), reason="telegram_close_all")
+                        closed.append(f"#{tid} {r.get('symbol', '')}: {r.get('profit_abs', 0):+.2f} USDT")
+                    except Exception as ex:
+                        closed.append(f"#{tid} Gagal: {ex}")
+            summary = "\n".join([f"• {c}" for c in closed])
+            self.notifier.send_message(f"🚨 <b>SEMUA POSISI DITUTUP</b>\n\n{summary}", reply_markup=self._make_positions_markup(), chat_id=sender_id)
+            return
+
+        trade_id = None
+        if tgt.isdigit():
+            trade_id = int(tgt)
+        elif len(positions) == 1:
+            trade_id = positions[0].get("id") or positions[0].get("trade_id")
+
+        if not trade_id:
+            self.notifier.send_message(
+                "💡 Format: <code>/close [trade_id]</code> atau <code>/close all</code>\n"
+                "Ketik <code>/positions</code> untuk melihat ID posisi yang terbuka.",
+                reply_markup=self._make_positions_markup(),
+                chat_id=sender_id,
+            )
+            return
+
+        try:
+            res = self.api.close_position(trade_id=trade_id, reason="telegram_operator")
+            pnl_usd = res.get("profit_abs", 0.0)
+            pnl_pct = res.get("profit_pct", 0.0)
+            pnl_bullet = "🟢" if pnl_usd >= 0 else "🔴"
+            msg = (
+                f"✅ <b>POSISI BERHASIL DITUTUP</b>\n\n"
+                f"• <b>Trade ID:</b> <code>#{trade_id}</code>\n"
+                f"• <b>Pair:</b> <code>{res.get('symbol', '')}</code>\n"
+                f"• <b>Exit Price:</b> <code>${res.get('exit_price', 0):,.4f}</code>\n"
+                f"• <b>Realized PnL:</b> {pnl_bullet} <b>{pnl_usd:+.2f} USDT ({pnl_pct:+.2f}%)</b>\n"
+                f"• <b>Status:</b> <code>CLOSED</code>"
+            )
+            self.notifier.send_message(msg, reply_markup=self._make_positions_markup(), chat_id=sender_id)
+        except Exception as e:
+            self.notifier.send_message(f"❌ Gagal menutup posisi #{trade_id}: {e}", reply_markup=self._make_positions_markup(), chat_id=sender_id)
+
+    def _handle_manual_order(self, side: str, text: str, sender_id: str):
+        if not self.api:
+            return
+        parts = text.split()
+        if len(parts) < 3:
+            self.notifier.send_message(
+                f"💡 Format: <code>/{side.lower()} [PAIR] [AMOUNT] [PRICE_OPSIONAL]</code>\n"
+                f"Contoh:\n"
+                f"• <code>/{side.lower()} ETH 0.05</code> (Market Price)\n"
+                f"• <code>/{side.lower()} BTC 0.01 85000</code> (Limit Price)",
+                reply_markup=INLINE_BACK_HOME,
+                chat_id=sender_id,
+            )
+            return
+
+        sym_raw = parts[1].upper().replace(":USDT", "").replace("/", "")
+        coin = sym_raw.replace("USDT", "")
+        symbol = f"{coin}/USDT:USDT"
+
+        try:
+            amount = float(parts[2])
+            price = float(parts[3]) if len(parts) > 3 else None
+        except ValueError:
+            self.notifier.send_message("❌ Amount atau Price harus berupa angka valid.", reply_markup=INLINE_BACK_HOME, chat_id=sender_id)
+            return
+
+        try:
+            res = self.api.create_manual_order(
+                symbol=symbol,
+                side=side,
+                order_type="LIMIT" if price else "MARKET",
+                amount=amount,
+                price=price,
+                stop_loss_pct=1.5,
+                take_profit_pct=3.0,
+                leverage=3.0,
+            )
+            tid = res.get("trade_id")
+            exec_price = res.get("price", 0.0)
+            sl = res.get("stop_loss", 0.0)
+            msg = (
+                f"⚡ <b>MANUAL {side} ORDER DIEKSEKUSI</b>\n\n"
+                f"• <b>Trade ID:</b> <code>#{tid}</code>\n"
+                f"• <b>Pair:</b> <code>{symbol}</code>\n"
+                f"• <b>Side:</b> <code>{side}</code>\n"
+                f"• <b>Amount:</b> <code>{amount}</code>\n"
+                f"• <b>Fill Price:</b> <code>${exec_price:,.4f}</code>\n"
+                f"• <b>Stop Loss:</b> <code>${sl:,.4f}</code> (-1.5%)\n"
+                f"• <b>Status:</b> 🟢 <code>{res.get('status', 'FILLED')}</code>\n"
+                f"• <b>Mode:</b> 🔒 <b>PAPER SAFE</b>"
+            )
+            self.notifier.send_message(msg, reply_markup=self._make_positions_markup(), chat_id=sender_id)
+        except Exception as e:
+            self.notifier.send_message(f"❌ Gagal eksekusi order {side}: {e}", reply_markup=INLINE_BACK_HOME, chat_id=sender_id)
+
+    def _handle_cancel_command(self, order_id: str, sender_id: str):
+        if not self.api:
+            return
+        if not order_id:
+            self.notifier.send_message("💡 Format: <code>/cancel [ORDER_ID]</code>\nKetik <code>/orders</code> untuk melihat daftar order.", reply_markup=self._make_nav_markup("view:orders", "menu:market"), chat_id=sender_id)
+            return
+        try:
+            res = self.api.cancel_order(order_id)
+            self.notifier.send_message(f"✅ Order <code>{order_id}</code> dibatalkan.", reply_markup=self._make_nav_markup("view:orders", "menu:market"), chat_id=sender_id)
+        except Exception as e:
+            self.notifier.send_message(f"❌ Gagal membatalkan order {order_id}: {e}", reply_markup=self._make_nav_markup("view:orders", "menu:market"), chat_id=sender_id)
+
+    def _handle_auto_start_command(self, profile_id: str, sender_id: str):
+        if not self.api:
+            return
+        profiles = self.api.list_trading_profiles()
+        if not profile_id:
+            lines = ["💡 <b>Pilih Profil untuk Dijalankan:</b>\n"]
+            for p in profiles:
+                lines.append(f"• <code>/auto_start {p['profile_id']}</code> — {p.get('name')} ({p.get('symbol')})")
+            self.notifier.send_message("\n".join(lines), reply_markup=self._make_auto_engine_markup(), chat_id=sender_id)
+            return
+        try:
+            res = self.api.start_trading_profile(profile_id)
+            self.notifier.send_message(f"🚀 Profil <code>{profile_id}</code> berhasil dijalankan!", reply_markup=self._make_auto_engine_markup(), chat_id=sender_id)
+        except Exception as e:
+            self.notifier.send_message(f"❌ Gagal menjalankan profil {profile_id}: {e}", reply_markup=self._make_auto_engine_markup(), chat_id=sender_id)
+
+    def _handle_auto_stop_command(self, profile_id: str, sender_id: str):
+        if not self.api:
+            return
+        status = self.api.get_autonomous_engine_status()
+        running = status.get("running_profiles", [])
+        if not profile_id:
+            if not running:
+                self.notifier.send_message("ℹ️ Tidak ada profil yang sedang berjalan.", reply_markup=self._make_auto_engine_markup(), chat_id=sender_id)
+                return
+            lines = ["💡 <b>Pilih Profil untuk Dihentikan:</b>\n"]
+            for p in running:
+                lines.append(f"• <code>/auto_stop {p['profile_id']}</code> — {p.get('name')} ({p.get('symbol')})")
+            self.notifier.send_message("\n".join(lines), reply_markup=self._make_auto_engine_markup(), chat_id=sender_id)
+            return
+        try:
+            res = self.api.stop_trading_profile(profile_id)
+            self.notifier.send_message(f"⏹️ Profil <code>{profile_id}</code> dihentikan.", reply_markup=self._make_auto_engine_markup(), chat_id=sender_id)
+        except Exception as e:
+            self.notifier.send_message(f"❌ Gagal menghentikan profil {profile_id}: {e}", reply_markup=self._make_auto_engine_markup(), chat_id=sender_id)
+
+    def _handle_auto_tick_command(self, profile_id: str, sender_id: str):
+        if not self.api:
+            return
+        try:
+            if profile_id:
+                res = self.api.trigger_profile_tick(profile_id)
+                self.notifier.send_message(f"⚡ Evaluasi tick <code>{profile_id}</code>: {res.get('message', 'Selesai')}", reply_markup=self._make_auto_engine_markup(), chat_id=sender_id)
+            else:
+                self._execute_inline_auto_tick_all(0, sender_id)
+        except Exception as e:
+            self.notifier.send_message(f"❌ Gagal evaluasi tick: {e}", reply_markup=self._make_auto_engine_markup(), chat_id=sender_id)

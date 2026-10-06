@@ -95,17 +95,20 @@ class CuanimusHttpHandler(BaseHTTPRequestHandler):
         self.send_header("Access-Control-Allow-Credentials", "true")
 
     def _send_json(self, status_code: int, data: Any, extra_headers: Optional[Dict[str, str]] = None):
-        payload = json.dumps(data, indent=2).encode("utf-8")
-        self.send_response(status_code)
-        self.send_header("Content-Type", "application/json; charset=utf-8")
-        self.send_header("Content-Length", str(len(payload)))
-        self._send_security_headers()
-        self._send_cors_headers()
-        if extra_headers:
-            for k, v in extra_headers.items():
-                self.send_header(k, v)
-        self.end_headers()
-        self.wfile.write(payload)
+        try:
+            payload = json.dumps(data, indent=2).encode("utf-8")
+            self.send_response(status_code)
+            self.send_header("Content-Type", "application/json; charset=utf-8")
+            self.send_header("Content-Length", str(len(payload)))
+            self._send_security_headers()
+            self._send_cors_headers()
+            if extra_headers:
+                for k, v in extra_headers.items():
+                    self.send_header(k, v)
+            self.end_headers()
+            self.wfile.write(payload)
+        except (BrokenPipeError, ConnectionResetError):
+            pass
 
     def _read_json_body(self) -> Dict[str, Any]:
         try:
@@ -576,10 +579,15 @@ class CuanimusHttpHandler(BaseHTTPRequestHandler):
             self._send_cors_headers()
             self.end_headers()
             self.wfile.write(content)
+        except (BrokenPipeError, ConnectionResetError):
+            pass
         except Exception as e:
-            self.send_response(500)
-            self.end_headers()
-            self.wfile.write(f"500 Internal Error: {e}".encode("utf-8"))
+            try:
+                self.send_response(500)
+                self.end_headers()
+                self.wfile.write(f"500 Internal Error: {e}".encode("utf-8"))
+            except (BrokenPipeError, ConnectionResetError):
+                pass
 
     def _handle_sse_stream(self):
         self.send_response(200)
