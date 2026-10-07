@@ -521,6 +521,40 @@ const Modals = {
       enabled: true
     };
 
+    // Strategy details catalog with user-friendly descriptions and trading styles
+    const strategyDetails = {
+      'hybrid_v2c': {
+        badge: '🎯',
+        label: '🎯 Hybrid Confluence (EMA Pullback + SMC Order Block) — [hybrid_v2c]',
+        desc: '<b>Rekomendasi Utama:</b> Menggabungkan arah tren EMA20, osilator Stochastic oversold, dan retest Order Block SMC. Akurasi & rasio profit tertinggi.',
+        style: 'High Win-rate Confluence'
+      },
+      'pullback_v2a': {
+        badge: '📈',
+        label: '📈 Trend Pullback & Stoch Reset (Fast Continuation) — [pullback_v2a]',
+        desc: '<b>Optimal Tren Kuat:</b> Masuk cepat saat koreksi dangkal ke garis EMA20 dengan konfirmasi reset Stochastic oversold.',
+        style: 'Trend Following / Fast Pullback'
+      },
+      'structure_v2b': {
+        badge: '🏛️',
+        label: '🏛️ Market Structure & Fibonacci 61.8% (SMC Swing) — [structure_v2b]',
+        desc: '<b>Optimal Swing:</b> Deteksi pergeseran struktur pasar (BOS/CHoCH) dan pantulan Fibonacci Golden Pocket level 61.8%.',
+        style: 'Smart Money Concept (SMC Swing)'
+      },
+      'atr_v1': {
+        badge: '🛡️',
+        label: '🛡️ Volatility Breakout & Dynamic ATR Stop — [atr_v1]',
+        desc: '<b>Adaptif Volatilitas:</b> Momentum breakout dengan Stop Loss dinamis yang otomatis menyesuaikan rentang Average True Range (ATR).',
+        style: 'Volatility Breakout (Adaptive Stop)'
+      },
+      'baseline_v0': {
+        badge: '⚡',
+        label: '⚡ Classic Trend Follower (Dual EMA + RSI Momentum) — [baseline_v0]',
+        desc: '<b>Tren Klasik:</b> Crossover EMA 20/50 dengan filter kekuatan tren ADX dan konfirmasi momentum RSI standar.',
+        style: 'Classic Dual EMA Trend'
+      }
+    };
+
     // Fetch real data from API
     let strategies = ['hybrid_v2c', 'pullback_v2a', 'structure_v2b', 'baseline_v0', 'atr_v1'];
     let agents = [];
@@ -532,13 +566,17 @@ const Modals = {
         API.getAgents().catch(() => ({ agents: [] })),
         API.getPairs().catch(() => ({ pairs: [] }))
       ]);
-      if (stratRes.strategies?.length) strategies = stratRes.strategies.map(s => ({ id: s.strategy_id, name: s.name || s.strategy_id }));
-      else strategies = strategies.map(s => ({ id: s, name: s }));
+      if (stratRes.strategies?.length) strategies = stratRes.strategies.map(s => ({ id: s.strategy_id, name: s.name || s.strategy_id, desc: s.description || '' }));
+      else strategies = strategies.map(s => ({ id: s, name: s, desc: '' }));
       if (agentRes.agents?.length) agents = agentRes.agents.map(a => ({ id: a.agent_id, name: a.agent_id }));
       if (pairRes.pairs?.length) pairs = pairRes.pairs.map(pr => pr.internal || pr.symbol || pr);
     } catch (_) {}
 
-    const stratOpts = strategies.map(s => `<option value="${s.id}" ${s.id === p.strategy_id ? 'selected' : ''}>${s.id}</option>`).join('');
+    const stratOpts = strategies.map(s => {
+      const meta = strategyDetails[s.id] || { label: `${s.name || s.id} — [${s.id}]` };
+      return `<option value="${s.id}" ${s.id === p.strategy_id ? 'selected' : ''}>${meta.label}</option>`;
+    }).join('');
+
     const agentOpts = agents.length
       ? agents.map(a => `<option value="${a.id}" ${a.id === p.agent_id ? 'selected' : ''}>${a.id}</option>`).join('')
       : '<option value="">No agents configured</option>';
@@ -587,7 +625,8 @@ const Modals = {
 
             <div id="prof-field-strategy" class="field-group-strategy">
               <div class="field-group-label-strategy">🧠 Strategy Template (Quantitative Rules)</div>
-              <select id="prof-strategy" class="form-input">${stratOpts}</select>
+              <select id="prof-strategy" class="form-input" style="font-weight:600">${stratOpts}</select>
+              <div id="prof-strategy-desc" style="margin-top:8px;font-size:11px;color:var(--text-muted);background:var(--bg-s3);padding:9px 13px;border-radius:5px;border-left:3px solid var(--accent);line-height:1.45"></div>
             </div>
 
             <div id="prof-field-agent" class="field-group-agent">
@@ -662,6 +701,21 @@ const Modals = {
     };
     modeSelect.addEventListener('change', updateVis);
     updateVis();
+
+    // Strategy description dynamic updater
+    const stratSelect = document.getElementById('prof-strategy');
+    const stratDescBox = document.getElementById('prof-strategy-desc');
+    const updateStratDesc = () => {
+      const sId = stratSelect?.value;
+      const meta = strategyDetails[sId];
+      if (meta && stratDescBox) {
+        stratDescBox.innerHTML = `💡 <b>Gaya Trading:</b> <span class="badge badge-neutral" style="font-size:10px;margin-left:4px">${meta.style}</span><br><div style="margin-top:4px">${meta.desc}</div>`;
+      } else if (stratDescBox) {
+        stratDescBox.innerHTML = `💡 <b>Template:</b> <code>${sId}</code>`;
+      }
+    };
+    stratSelect?.addEventListener('change', updateStratDesc);
+    updateStratDesc();
 
     // Save button
     document.getElementById('btn-save-profile').addEventListener('click', async () => {

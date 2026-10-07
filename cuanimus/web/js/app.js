@@ -1036,13 +1036,20 @@ class CuanimusApp {
             <button class="btn btn-primary" id="btn-create-empty">+ Create Trading Profile</button>
           </div>
         </div>`;
-    } else {
+      const stratDisplayNames = {
+        'hybrid_v2c': '🎯 Hybrid Confluence',
+        'pullback_v2a': '📈 Trend Pullback',
+        'structure_v2b': '🏛️ Market Structure SMC',
+        'atr_v1': '🛡️ ATR Breakout',
+        'baseline_v0': '⚡ Classic Dual EMA'
+      };
       profilesHtml = profiles.map(p => {
         const run = !!p.is_running;
+        const sName = stratDisplayNames[p.strategy_id] || p.strategy_id || '—';
         const modeColors = {
-          strategy: { bg:'rgba(91,255,202,0.10)', color:'var(--mint)',     label:'🧠 Strategy', detail:`Template: <b>${p.strategy_id||'—'}</b>` },
+          strategy: { bg:'rgba(91,255,202,0.10)', color:'var(--mint)',     label:'🧠 Strategy', detail:`Template: <b>${sName}</b>` },
           ai_agent: { bg:'rgba(204,136,255,0.10)',color:'var(--lavender)', label:'🤖 AI Agent',  detail:`Agent: <b>${p.agent_id||'—'}</b>` },
-          hybrid:   { bg:'rgba(255,179,217,0.10)',color:'var(--pink)',     label:'⚡ Hybrid',    detail:`Filter: <b>${p.strategy_id}</b> | Agent: <b>${p.agent_id||'—'}</b>` }
+          hybrid:   { bg:'rgba(255,179,217,0.10)',color:'var(--pink)',     label:'⚡ Hybrid',    detail:`Filter: <b>${sName}</b> | Agent: <b>${p.agent_id||'—'}</b>` }
         };
         const mc = modeColors[p.decision_mode] || modeColors.strategy;
         return `
