@@ -1036,6 +1036,7 @@ class CuanimusApp {
             <button class="btn btn-primary" id="btn-create-empty">+ Create Trading Profile</button>
           </div>
         </div>`;
+    } else {
       const stratDisplayNames = {
         'hybrid_v2c': '🎯 Hybrid Confluence',
         'pullback_v2a': '📈 Trend Pullback',

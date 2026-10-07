@@ -780,7 +780,7 @@ const CommandPalette = {
     { title: '💾  Data Center',               action: () => window.app.navigate('data') },
     { title: '📜  Logs & Events',             action: () => window.app.navigate('logs') },
     { title: '📱  Settings & Telegram',       action: () => window.app.navigate('settings') },
-    { title: '✨  Create Autonomous Trading Profile', action: () => Modals.showProfileModal() },
+    { title: '✨  Create Autonomous Trading Profile', action: () => Modals.showProfileModal(null, () => window.app?.renderAutonomous()) },
     { title: '🤖  Ask AI Copilot',            action: () => Modals.showAiCopilotModal() },
     { title: '🩺  Run System Diagnostics',    action: () => window.app.runDoctorDiagnostics() },
     { title: '🔔  Send Telegram Test Alert',  action: () => window.app.sendTelegramTest() },
