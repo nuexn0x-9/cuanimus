@@ -632,6 +632,13 @@ const Modals = {
                 <input type="number" step="0.1" id="prof-tp" class="form-input" value="${p.take_profit_pct||3.0}">
               </div>
             </div>
+
+            <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border)">
+              <label style="display:flex;align-items:center;gap:8px;font-size:12px;cursor:pointer">
+                <input type="checkbox" id="prof-auto-start" ${p.auto_start ? 'checked' : ''}>
+                <span><b>Auto-start on boot:</b> Automatically resume this profile when server restarts</span>
+              </label>
+            </div>
           </div>
 
           <div class="modal-footer">
@@ -677,6 +684,7 @@ const Modals = {
         max_trades_per_day:  parseInt(document.getElementById('prof-max-trades').value) || 10,
         stop_loss_pct:       parseFloat(document.getElementById('prof-sl').value)       || 1.5,
         take_profit_pct:     parseFloat(document.getElementById('prof-tp').value)       || 3.0,
+        auto_start:          !!document.getElementById('prof-auto-start')?.checked,
       };
 
       try {

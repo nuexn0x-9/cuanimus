@@ -56,7 +56,7 @@ class TradingProfile:
     take_profit_pct: float = 3.0                   # 3.0%
     trailing_stop_pct: float = 0.0
     enabled: bool = True
-    auto_start: bool = True
+    auto_start: bool = False
     is_running: bool = False
     last_processed_candle: Optional[str] = None
     created_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
@@ -129,7 +129,7 @@ class TradingProfile:
             take_profit_pct=float(data.get("take_profit_pct", 3.0)),
             trailing_stop_pct=float(data.get("trailing_stop_pct", 0.0)),
             enabled=bool(data.get("enabled", True)),
-            auto_start=bool(data.get("auto_start", True)),
+            auto_start=bool(data.get("auto_start", False)),
             is_running=bool(data.get("is_running", False)),
             last_processed_candle=data.get("last_processed_candle"),
             created_at=data.get("created_at", datetime.now(timezone.utc).isoformat()),

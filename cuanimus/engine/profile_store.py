@@ -42,6 +42,7 @@ class ProfileStore:
             take_profit_pct REAL DEFAULT 3.0,
             trailing_stop_pct REAL DEFAULT 0.0,
             enabled INTEGER DEFAULT 1,
+            auto_start INTEGER DEFAULT 0,
             is_running INTEGER DEFAULT 0,
             last_processed_candle VARCHAR(64),
             created_at VARCHAR(64),
@@ -97,6 +98,12 @@ class ProfileStore:
             self.db.execute(sql_traces)
         except Exception as e:
             logger.error(f"Failed to ensure autonomous engine schema: {e}")
+
+        # Migration: ensure auto_start column exists for existing tables
+        try:
+            self.db.execute("ALTER TABLE trading_profiles ADD COLUMN auto_start INTEGER DEFAULT 0;")
+        except Exception:
+            pass
 
     def _seed_default_profiles_if_empty(self) -> None:
         """Seeds default profiles across the 3 decision modes if table is empty."""
@@ -222,6 +229,7 @@ class ProfileStore:
                 take_profit_pct = ?,
                 trailing_stop_pct = ?,
                 enabled = ?,
+                auto_start = ?,
                 is_running = ?,
                 last_processed_candle = ?,
                 updated_at = ?
@@ -243,6 +251,7 @@ class ProfileStore:
                 p_dict["take_profit_pct"],
                 p_dict["trailing_stop_pct"],
                 1 if p_dict["enabled"] else 0,
+                1 if p_dict.get("auto_start") else 0,
                 1 if p_dict["is_running"] else 0,
                 p_dict["last_processed_candle"],
                 now_str,
@@ -256,9 +265,9 @@ class ProfileStore:
                 strategy_id, strategy_params, agent_id, risk_profile,
                 execution_mode, max_open_positions, max_trades_per_day,
                 stop_loss_pct, take_profit_pct, trailing_stop_pct,
-                enabled, is_running, last_processed_candle,
+                enabled, auto_start, is_running, last_processed_candle,
                 created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """
             params = (
                 profile.profile_id,
@@ -277,6 +286,7 @@ class ProfileStore:
                 p_dict["take_profit_pct"],
                 p_dict["trailing_stop_pct"],
                 1 if p_dict["enabled"] else 0,
+                1 if p_dict.get("auto_start") else 0,
                 1 if p_dict["is_running"] else 0,
                 p_dict["last_processed_candle"],
                 p_dict["created_at"],

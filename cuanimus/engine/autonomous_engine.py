@@ -102,10 +102,10 @@ class AutonomousTradingEngine:
     # Lifecycle Control (Start / Stop / Background Worker)
     # -------------------------------------------------------------------------
 
-    def start(self) -> None:
-        """Starts the autonomous engine background daemon and auto-resumes profiles."""
+    def ensure_worker_running(self) -> None:
+        """Ensures the background worker daemon is active without altering individual profile states."""
         with self._lock:
-            if not self._running:
+            if not self._running or self._thread is None or not self._thread.is_alive():
                 self._running = True
                 self._thread = threading.Thread(
                     target=self._worker_loop,
@@ -115,7 +115,12 @@ class AutonomousTradingEngine:
                 self._thread.start()
                 logger.info("[AutonomousTradingEngine] Background worker daemon started successfully.")
 
-            # Auto-resume profiles marked with auto_start
+    def start(self, auto_resume: bool = False) -> None:
+        """Starts the autonomous engine background daemon and optionally auto-resumes profiles."""
+        self.ensure_worker_running()
+
+        # Auto-resume profiles marked with auto_start ONLY when explicitly requested (e.g. boot)
+        if auto_resume:
             try:
                 for p in self.store.list_profiles():
                     if p.enabled and p.auto_start and not p.is_running:
@@ -605,8 +610,8 @@ class AutonomousTradingEngine:
 
         self.store.update_profile_running_state(profile_id, is_running=True)
 
-        # Ensure background engine thread is running
-        self.start()
+        # Ensure background engine thread is running without affecting other profiles
+        self.ensure_worker_running()
 
         # Send Telegram notification
         try:

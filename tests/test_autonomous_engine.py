@@ -485,6 +485,41 @@ class TestAutonomousTradingEngine(unittest.TestCase):
         self.assertEqual(sizing["contracts"], 2.0)  # 200 / 100 = 2.0
         self.assertEqual(sizing["step_size"], 0.1)
 
+    # -------------------------------------------------------------------------
+    # 14. Single Profile Start Isolation Test
+    # -------------------------------------------------------------------------
+    def test_start_single_profile_does_not_start_other_stopped_profiles(self):
+        """Starting a single profile must NOT start other stopped profiles."""
+        p1 = TradingProfile(
+            profile_id="prof_iso_1",
+            name="Iso Profile 1",
+            symbol="ADA/USDT:USDT",
+            enabled=True,
+            auto_start=True,
+            is_running=False,
+        )
+        p2 = TradingProfile(
+            profile_id="prof_iso_2",
+            name="Iso Profile 2",
+            symbol="ETH/USDT:USDT",
+            enabled=True,
+            auto_start=True,
+            is_running=False,
+        )
+        self.profile_store.save_profile(p1)
+        self.profile_store.save_profile(p2)
+
+        # Start ONLY p1
+        self.engine.start_profile("prof_iso_1")
+
+        # Verify p1 is running
+        p1_reloaded = self.profile_store.get_profile("prof_iso_1")
+        self.assertTrue(p1_reloaded.is_running)
+
+        # Verify p2 is STILL STOPPED
+        p2_reloaded = self.profile_store.get_profile("prof_iso_2")
+        self.assertFalse(p2_reloaded.is_running)
+
 
 if __name__ == "__main__":
     unittest.main()
