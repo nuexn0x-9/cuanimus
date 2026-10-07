@@ -1,6 +1,6 @@
 # CUANIMUS — Open-Source Algorithmic Crypto Trading Platform
 
-[![CI Tests](https://img.shields.io/badge/tests-138%20passed-brightgreen.svg)]()
+[![CI Tests](https://img.shields.io/badge/tests-177%20passed-brightgreen.svg)]()
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue.svg)]()
 [![License](https://img.shields.io/badge/license-MIT-green.svg)]()
 [![MCP](https://img.shields.io/badge/MCP-2024--11--05-purple.svg)]()
@@ -18,6 +18,8 @@
 4. **Decoupled Architecture:** Strategy plugins emit pure intentions (`TradeIntent`), never touching exchange APIs directly.
 5. **Safety-First Invariants:** Mandatory air-gapped paper trading guards; live capital trading is **strictly disabled** by default.
 6. **AI Agent Accessible (MCP Gateway):** Full Model Context Protocol (MCP) integration over `stdio` and `http` allowing AI agents (Antigravity, Codex, Claude Desktop, Cursor) to analyze markets, propose configurations, and automate paper trading safely.
+7. **Autonomous Trading Engine (3 Decision Modes):** Continuous background loop supporting **Mode A (Strategy Autotrade)**, **Mode B (AI Agent Autotrade)**, and **Mode C (Hybrid Autotrade)** with granular Trading Profiles and strict closed-candle idempotency.
+8. **Simple Freqtrade-Style Dry Run / Live Switch:** Intuitive toggle between `dry_run: true` (simulated paper environment) and `dry_run: false` (real Binance HMAC-SHA256 authenticated execution).
 
 ---
 
@@ -126,31 +128,81 @@ $$\text{Defaults} \longrightarrow \text{Profile} \longrightarrow \text{Subsystem
 
 ---
 
-## Web Control Center & Trading Interface (Phase 8)
+## Autonomous Trading Engine (3 Decision Modes)
 
-CUANIMUS includes a professional, zero-build web-based trading control center:
+CUANIMUS features an integrated, continuous **Autonomous Trading Engine** inspired by institutional execution architectures and Freqtrade-style lifecycle loops:
+
+```text
+Market Data (Binance Closed Candle)
+       │
+       ▼
+Decision Mode Engine:
+ ├─ MODE A: Strategy Autotrade (Pure Quant Template)
+ ├─ MODE B: AI Agent Autotrade (AI Decision Maker)
+ └─ MODE C: Hybrid Autotrade (Strategy Signal Filter + AI Agent Confirm)
+       │
+       ▼
+Agent Trading Policy Engine (Institutional Ceilings)
+       │
+       ▼
+Risk Engine (Independent Authority: Exposure, Daily Loss, Drawdown)
+       │
+       ▼
+Trade Intent Lifecycle
+       │
+       ▼
+Execution Engine & Dynamic Position/Exit Manager
+       │
+       ▼
+Exchange Adapter (PAPER Simulation or Binance Private API)
+```
+
+### Trading Profiles
+Users configure autonomous trading via granular **Trading Profiles**:
+* **Pair & Timeframe:** (e.g. `BTC/USDT:USDT` • `15m`, `ETH/USDT:USDT` • `1h`)
+* **Decision Mode:** `Strategy` (A), `AI Agent` (B), or `Hybrid` (C)
+* **Risk Profile:** `conservative`, `balanced`, or `aggressive`
+* **Execution Environment:** `PAPER` (Simulated) or `LIVE` (Binance Private API via HMAC-SHA256)
+* **Strict Closed-Candle Idempotency:** Evaluates strictly on finalized closed candles with persistent timestamps, eliminating lookahead bias and future MAE/MFE leakage.
+
+---
+
+## Web Control Center & Trading Terminal
+
+CUANIMUS includes a zero-build, responsive web-based quantitative terminal:
 
 ```bash
 # 1. Inspect Web Control Center status
 ./cuanimus-cli ui status
 
-# 2. Start the Web Control Center HTTP Daemon (default: http://127.0.0.1:8080)
-./cuanimus-cli ui start --port 8080
+# 2. Start Web Control Center HTTP Daemon (default: http://0.0.0.0:8888)
+./cuanimus-cli ui start --port 8888
 
-# 3. Open browser:
-# http://127.0.0.1:8080/
+# 3. Access in browser:
+# http://localhost:8888/
 ```
 
-Key features:
-- **Zero-Dependency Architecture:** Pure modern HTML5/CSS3/ES Modules. No Node.js or npm required.
-- **Hardware-Accelerated Canvas Charting:** Candlesticks, EMA overlays, ATR bands, Order Blocks, and SL/TP targets.
-- **Dedicated Risk Center:** Live visual progress meters for Daily Loss limit, Drawdown cap, and Capital Exposure.
-- **Deterministic Decision Traces:** Visual causal chain (*Market -> Regime -> Strategy -> Agent -> Risk -> Execution FSM -> Fill*).
-- **AI Configuration Copilot:** Natural language prompt input with typed JSON Schema diff preview before applying.
-- **Telegram Alert Integration:** Zero-dependency alert dispatching with connection status and test ping button.
-- **Global Emergency Kill Switch:** Persistent header-level emergency stop halting active sessions and locking RiskEngine.
+### Key UI/UX Capabilities:
+- **Zero-Dependency Architecture:** Modern HTML5/CSS3/ES Modules. No Node.js or npm required.
+- **Super Admin Auto-Sync:** Synchronizes credentials directly from `.env` (`API_SERVER_USERNAME`, `API_SERVER_PASSWORD`) to PBKDF2 hashes on boot.
+- **Quick Manual Order Entry Box:** Interactive order pad supporting `BUY (Long)` / `SELL (Short)`, `LIMIT` / `MARKET`, configurable Stop Loss %, Take Profit %, and Leverage.
+- **One-Tap Position Close:** Close active positions with real-time mark pricing, instant realized PnL calculation, database ledger recording, and Telegram alerts.
+- **Autonomous Profiles Management:** Filter profiles, clone existing configurations, start/stop profiles, and force evaluation ticks.
+- **CSV Data Export:** One-click streaming export of closed trades to `.csv` directly from the ledger.
+- **Hardware-Accelerated Canvas Charting:** Candlesticks, EMA overlays, ATR bands, Order Blocks, and SL/TP target levels.
+- **Mobile Responsive Drawer:** Hamburger navigation drawer `☰` with smooth touch overlay for smartphones.
+- **Audio Alert Synthesizer:** Real-time Web Audio API chimes for order executions and risk alerts.
 
 ---
+
+## Interactive Telegram Mobile Bot
+
+CUANIMUS includes an interactive two-way mobile bot with compact dropdown menus:
+* **Dropdown Inline Navigation:** Categorized sub-menus (*Portofolio & Pasar*, *Sinyal & Strategi*, *AI Copilot*, *Risiko*, *Sistem*) preventing smartphone screen clutter.
+* **One-Tap Position Close:** Dynamic inline buttons on active positions (`[❌ Tutup BTC #739]`, `[🚨 Tutup Semua Posisi]`).
+* **Autonomous Engine Mobile Control:** Start/stop profiles and force evaluation ticks directly from chat.
+* **Quick Trade Commands:** Execute manual paper orders via chat (`/buy BTC 0.01 85000`, `/sell ETH 0.1`, `/close [id|all]`, `/cancel [id]`).
+* **Emergency Kill Switch:** Immediate one-tap shutdown halting all trading sessions and locking new orders.
 
 ---
 
@@ -163,13 +215,10 @@ CUANIMUS provides hardened deployment features for Linux servers:
 - **Disaster Recovery:** Automated atomic backups with SHA256 integrity verification (`./cuanimus-cli backup create`).
 
 ```bash
-# 1. Bootstrap admin credentials
-./cuanimus-cli ui bootstrap
-
-# 2. Start Web Control Center in daemon mode
+# 1. Start Web Control Center in daemon mode
 ./cuanimus-cli ui start --daemon --port 8888
 
-# 3. Access securely via SSH Tunnel from workstation:
+# 2. Access securely via SSH Tunnel from workstation:
 # ssh -N -L 8888:127.0.0.1:8888 user@server-ip
 # Open http://localhost:8888/
 ```

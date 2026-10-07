@@ -17,6 +17,10 @@ Selamat datang di **CUANIMUS**! Dokumen ini adalah panduan praktis langkah-demi-
 8. [Panduan Menghubungkan AI Client (Antigravity, Claude, Cursor)](#8-panduan-menghubungkan-ai-client-antigravity-claude-cursor)
 9. [Protokol Keamanan & Emergency Kill Switch](#9-protokol-keamanan--emergency-kill-switch)
 10. [Perintah CLI Cheatsheet](#10-perintah-cli-cheatsheet)
+11. [Deployment Server & Docker Stack](#11-panduan-deployment-server-produksi--akses-remote)
+12. [Autonomous Trading Engine & 3 Decision Modes](#12-autonomous-trading-engine--trading-profiles)
+13. [Web Control Center & Terminal Trading Manual](#13-web-control-center--terminal-trading-manual)
+14. [Bot Telegram Mobile Interaktif](#14-bot-telegram-mobile-interaktif)
 
 ---
 
@@ -368,30 +372,118 @@ CUANIMUS menyediakan antarmuka web modern kelas workstation yang **100% tanpa bu
 
 ---
 
-## 12. Panduan Deployment Server Produksi & Akses Remote
+## 11. Panduan Deployment Server Produksi & Docker Stack
 
-Untuk menjalankan CUANIMUS pada server Linux produksi secara aman:
+CUANIMUS mendukung deployment server Linux dan kontainer Docker terisolasi:
 
-1. **Bootstrap Admin**:
-   ```bash
-   ./cuanimus-cli ui bootstrap
-   ```
-2. **Jalankan Daemon**:
-   ```bash
-   ./cuanimus-cli ui start --daemon --port 8888
-   ```
-3. **Koneksi Aman Melalui SSH Tunnel (dari laptop/workstation)**:
-   ```bash
-   ssh -N -L 8888:127.0.0.1:8888 user@ip-server
-   ```
-   Buka browser di `http://localhost:8888/` dan login dengan akun admin yang telah di-bootstrap.
+### A. Menggunakan Docker Compose (Direkomendasikan)
+Stack resmi CUANIMUS terdiri atas 3 container:
+1. **`cuanimus_app`** (`:8888`): Web UI, REST API, Autonomous Engine & Telegram Poller.
+2. **`cuanimus_mcp`** (`:8889`): Dedicated Standalone MCP Server.
+3. **`cuanimus_db`** (`:5432`): Database PostgreSQL 16.
 
-Dokumentasi teknis lengkap tersedia di folder `docs/10-deployment/`:
-- [Quickstart Panduan Deployment](docs/10-deployment/GETTING_STARTED.md)
-- [Arsitektur Keamanan Web & RBAC](docs/10-deployment/WEB_ACCESS.md)
-- [Konfigurasi MCP Server & Scoped Token](docs/10-deployment/MCP_SETUP.md)
-- [Operasional & Disaster Recovery](docs/10-deployment/OPERATIONS.md)
-- [Panduan Pemecahan Masalah (Troubleshooting)](docs/10-deployment/TROUBLESHOOTING.md)
+```bash
+# Jalankan seluruh stack container di background
+docker compose up -d
+
+# Cek status kesehatan container
+docker compose ps
+
+# Pantau log aktif
+docker compose logs -f cuanimus
+```
+
+### B. Menjalankan Langsung via Host Python (Tanpa Docker)
+```bash
+# 1. Jalankan di background
+./cuanimus-cli ui start --daemon --port 8888
+
+# 2. Cek status
+./cuanimus-cli ui status
+
+# 3. Akses via SSH Tunnel (bila di VPS):
+ssh -N -L 8888:127.0.0.1:8888 user@ip-server
+# Buka http://localhost:8888/ di browser
+```
+
+---
+
+## 12. Autonomous Trading Engine & 3 Decision Modes
+
+CUANIMUS menyediakan **Autonomous Trading Engine** kontinu yang memantau market secara otomatis tanpa perlu intervensi klik manual setiap candle.
+
+### Tiga Decision Mode Resmi:
+1. **MODE A — STRATEGY AUTOTRADE:**
+   Keputusan 100% deterministik dari template strategi kuantitatif (misal: `hybrid_v2c`, `pullback_v2a`).
+   `Market Data -> Strategy -> Signal -> Risk Engine -> Execution Engine`
+2. **MODE B — AI AGENT AUTOTRADE:**
+   AI Agent (misal: Gemini, Hermes, Claude) bertindak sebagai analis & pengambil keputusan terstruktur JSON.
+   `Market Context -> AI Agent -> Structured Decision -> Policy Engine -> Risk Engine -> Execution Engine`
+3. **MODE C — HYBRID AUTOTRADE:**
+   Strategi kuantitatif menjadi **filter sinyal**, dan AI Agent menjadi **konfirmator/decision-maker**. AI hanya dipanggil saat strategi mendeteksi setup, menghemat kuota token AI dan menyaring false signal.
+   `Market Data -> Strategy Filter -> AI Confirmation -> Policy Engine -> Risk Engine -> Execution Engine`
+
+### Trading Profiles:
+User mengatur autonomous trading melalui **Trading Profiles**:
+* **Pair & Timeframe:** (e.g. `BTC/USDT:USDT` • `15m`)
+* **Decision Mode:** `Strategy`, `AI Agent`, atau `Hybrid`
+* **Risk Profile:** `conservative` (0.5% risk, 3x lev), `balanced`, atau `aggressive`
+* **Execution Environment:** `PAPER` atau `LIVE`
+* **Idempotensi Candle Tertutup:** Evaluasi strictly dieksekusi pada closed candle terakhir (`timestamp <= T`), mencegah kebocoran sinyal (future leakage).
+
+Profil dapat dibuat, dikloning (*Clone Profile*), di-start, di-pause, atau dihentikan langsung melalui tab **Autonomous Engine** di Web UI atau via Telegram.
+
+---
+
+## 13. Web Control Center & Terminal Trading Manual
+
+Web Control Center (`http://localhost:8888/`) menyediakan antarmuka lengkap tanpa build tool (Zero npm/Node):
+
+### 1. Sinkronisasi Akun Super Admin dari `.env`
+Saat server boot pertama kali, kredensial administrator otomatis disinkronkan dari `.env`:
+* **Username:** `admin_gemini` (dari `API_SERVER_USERNAME`)
+* **Password:** `change_this_to_secure_password` (dari `API_SERVER_PASSWORD`)
+* **Keamanan:** PBKDF2-HMAC-SHA256 (100.000 iterasi) dengan salt unik. Token sesi tersimpan aman di `localStorage` browser.
+
+### 2. Quick Manual Order Entry
+Di tab **Trading Terminal**, tersedia kotak pemesanan cepat:
+* Pilihan **BUY (Long)** atau **SELL (Short)**
+* Tipe Order: **LIMIT** atau **MARKET**
+* Input: Jumlah Koin, Harga, Stop Loss %, Take Profit %, dan Leverage
+* Tombol **Submit Order**: Melewati validasi Risk Engine dan dieksekusi secara instan.
+
+### 3. Kontrol Posisi & Ekspor Data Riil
+* **Tutup Posisi 1-Klik:** Tombol merah `Close` pada tabel Active Positions untuk menutup posisi seketika dengan perhitungan PnL riil otomatis.
+* **Batal Order:** Tombol `Cancel` pada open orders.
+* **Ekspor CSV:** Tombol `📥 Export CSV` di riwayat Closed Trades yang langsung men-stream seluruh rekaman transaksi ke format `.csv`.
+* **Mobile Drawer:** Responsif di layar ponsel dengan menu hamburger `☰` dan overlay backdrop.
+
+---
+
+## 14. Bot Telegram Mobile Interaktif
+
+CUANIMUS terintegrasi langsung dengan Telegram Bot dua-arah via long-polling:
+
+### 1. Navigasi Dropdown Kompak
+Menggunakan `InlineKeyboardMarkup` yang terbagi rapi ke beberapa kategori:
+* **📊 Portofolio & Pasar:** Status platform, Saldo/Equity, Watchlist harga Binance, Posisi terbuka, Kinerja harian, Riwayat order.
+* **⚡ Sinyal & Strategi:** Sinyal ETH/BTC/SOL, Katalog strategi, Autonomous Engine.
+* **🤖 AI Copilot & Agent:** Status AI & tools MCP, Konsultasi pasar.
+* **🛡️ Risiko & Proteksi:** Status Risk Engine, Aktifkan/Reset Kill Switch darurat.
+* **🗄️ Database & Sistem:** Status ledger database, switch SQLite/PostgreSQL.
+
+### 2. Kontrol Posisi & Auto Engine 1-Ketukan
+* Saat melihat posisi via `/positions`, muncul tombol inline interaktif: `[❌ Tutup BTC #739]` dan `[🚨 Tutup Semua Posisi]`.
+* Saat melihat autonomous engine via `/auto`, muncul tombol: `[▶️ Mulai Profil]`, `[⏹️ Hentikan Profil]`, dan `[⚡ Force Eval (Tick)]`.
+
+### 3. Perintah Cepat via Chat:
+* `/close [trade_id|all]` — Tutup posisi terbuka tertentu atau seluruhnya.
+* `/buy <PAIR> <AMOUNT> [PRICE]` — Buka posisi BUY/LONG manual.
+* `/sell <PAIR> <AMOUNT> [PRICE]` — Buka posisi SELL/SHORT manual.
+* `/cancel <ORDER_ID>` — Batalkan order limit.
+* `/auto_start <PROFILE_ID>` — Jalankan profil trading otomatis.
+* `/auto_stop <PROFILE_ID>` — Hentikan profil trading otomatis.
+* `/kill` — Emergency Kill Switch seketika.
 
 ---
 

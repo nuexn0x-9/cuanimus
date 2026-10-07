@@ -34,8 +34,9 @@ Operator Browser / Remote Client
 
 | Component | Bind Address | Port | Rationale |
 | :--- | :--- | :--- | :--- |
-| **CUANIMUS Web UI** | `127.0.0.1` | **8888** | Avoids port 80 (Apache) and port 8080 (Freqtrade container). |
-| **CUANIMUS MCP HTTP** | `127.0.0.1` | **8000** | Standalone JSON-RPC daemon (also reachable via `/mcp` proxy on 8888). |
+| **CUANIMUS Web UI & API** | `0.0.0.0` / `127.0.0.1` | **8888** | Avoids port 80 (Apache) and port 8080 (Freqtrade container). Includes integrated `/mcp` proxy. |
+| **CUANIMUS Dedicated MCP** | `0.0.0.0` / `127.0.0.1` | **8889** | Dedicated standalone JSON-RPC 2.0 daemon (`cuanimus-mcp`). |
+| **CUANIMUS PostgreSQL** | `0.0.0.0` / `127.0.0.1` | **5432** | Quantitative database ledger (`cuanimus-db`). |
 | **Apache 2** | `0.0.0.0` | 80 | Existing web server (untouched). |
 | **Freqtrade Container**| `0.0.0.0` | 8080 | Pre-existing futures test bot (untouched). |
 
@@ -43,7 +44,7 @@ Operator Browser / Remote Client
 
 ## 3. Remote Access via Secure SSH Tunnel
 
-Since CUANIMUS strictly binds to `127.0.0.1` for maximum security, remote access from developer workstations is conducted through an encrypted SSH tunnel.
+Since CUANIMUS can be run locally or bound to localhost/container networks, remote access from developer workstations is conducted through an encrypted SSH tunnel or direct port mapping:
 
 ### Command for Operator Workstations:
 
@@ -54,7 +55,9 @@ ssh -N -L 8888:127.0.0.1:8888 <user>@<server-ip>
 Once the tunnel is active:
 1. Open your web browser.
 2. Navigate to: `http://localhost:8888/`
-3. Enter your bootstrapped `admin` username and temporary password.
+3. Enter your configured credentials:
+   - **Default Super Admin (.env):** `admin_gemini` / `change_this_to_secure_password`
+   - Or bootstrapped admin account.
 
 ---
 

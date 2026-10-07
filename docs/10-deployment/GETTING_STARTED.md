@@ -29,8 +29,9 @@ Before starting, take note of the platform's core safety invariants:
 - **Python:** Python 3.10+ standard library. Zero external framework dependencies required for server execution (no Node.js, no Redis, no PostgreSQL).
 - **RAM Footprint:** ~35–50 MB active resident memory.
 - **Port Allocation:**
-  - `127.0.0.1:8888` - CUANIMUS Web Control Center & REST API (chosen to avoid conflicts with Freqtrade on `8080` and Apache on `80`).
-  - `127.0.0.1:8000` - Dedicated Standalone MCP HTTP Daemon (optional; Web Control Center also proxies `/mcp` directly).
+  - `127.0.0.1:8888` - CUANIMUS Web Control Center, REST Control Plane API, Autonomous Engine & integrated `/mcp` proxy (chosen to avoid conflicts with Freqtrade on `8080` and Apache on `80`).
+  - `127.0.0.1:8889` - Dedicated Standalone MCP HTTP Daemon (`cuanimus-mcp`).
+  - `127.0.0.1:5432` - PostgreSQL 16 Relational Database (`cuanimus-db`).
 
 ---
 
@@ -45,9 +46,19 @@ Always create an atomic, SHA256-verified backup of existing configuration and da
 ./cuanimus-cli backup verify
 ```
 
-### Step 2: Bootstrap Administrative Credentials
+### Step 2: Configure Super Admin Credentials (.env Auto-Sync)
 
-Initialize the primary administrative operator account with high-entropy credentials:
+CUANIMUS automatically provisions and synchronizes administrative credentials directly from `.env` on daemon startup:
+
+```bash
+# In your .env file:
+API_SERVER_USERNAME=admin_gemini
+API_SERVER_PASSWORD=change_this_to_secure_password
+```
+
+On server boot, the system hashes this password with **PBKDF2-HMAC-SHA256 (100,000 iterations)** with a cryptographic salt and persists the user into the database with `ADMIN` role.
+
+Alternatively, you can manually bootstrap a standalone operator account via CLI:
 
 ```bash
 ./cuanimus-cli ui bootstrap
