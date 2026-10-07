@@ -39,6 +39,7 @@ class CuanimusApp {
       if (auth?.authenticated) {
         if (banner) banner.style.display = 'none';
         if (btn) {
+          btn.className = 'btn btn-sm';
           btn.innerHTML = `👤 ${auth.username} [${auth.role}]`;
           btn.title = 'Click to sign out';
           btn.onclick = async () => {
@@ -51,6 +52,7 @@ class CuanimusApp {
       } else {
         if (banner) banner.style.display = 'flex';
         if (btn) {
+          btn.className = 'btn btn-sm btn-primary';
           btn.innerHTML = '🔑 Sign In';
           btn.title = 'Click to sign in';
           btn.onclick = () => Modals.showLoginModal(() => this.checkAuthStatus());
